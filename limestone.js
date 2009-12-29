@@ -5,14 +5,18 @@ sys.puts('Connecting to searchd...');
 
 var port = 9312;
 
-tcp.createConnection(port).addListener('connect', function (connection) {
-    // Отсылаем номер версии протокола
-    connection.send(1);
+var server_conn = tcp.createConnection(port);
+server_conn.addListener('connect', function (connection) {
+    // Sending protocol version
+    sys.puts('Sending version number...');
+    // Here we must send 4 bytes, '00000001'
+    server_conn.send(1);
 
-    // Ждём ответного сигнала - нам придёт номер версии
-    connection.addListener('receive', function(data) {
+    // Waiting for answer
+    server_conn.addListener('receive', function(data) {
+        sys.puts('Server data received: ' + data);
         if (data > 0) {
-            // Успешно получили ответ.
+            // Here is our answer.
             sys.puts('Connection established');
 
         }
