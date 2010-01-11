@@ -8,15 +8,19 @@
 (function () {
 
   var chr, proto;
-  
-  exports.Encoder = function (header) {
-    this.header = header || "";
+
+  exports.Encoder = function (ServerCommand, ClientCommand) {
+    // if (ServerCommand & ClientCommand) {
+        this.header = encode_int16(ServerCommand) + encode_int16(ClientCommand);
+    // } else {
+    //    this.header = "";
+    // }
     this.data = "";
   };
 
   chr = String.fromCharCode;
   proto = exports.Encoder.prototype;
-  
+
   // Factor out the encode so it can be shared by add_header and push_int32
   function encode_int32(number) {
     var a, b, c, d, unsigned;
@@ -31,9 +35,23 @@
     return chr(a) + chr(b) + chr(c) + chr(d);
   }
 
+  function encode_int16(number) {
+    var a, b, unsigned;
+    unsigned = (number < 0) ? (number + 0x10000) : number;
+    a = Math.floor(unsigned / 0xff);
+    unsigned &= 0xff;
+    b = Math.floor(unsigned);
+    return chr(a) + chr(b);
+  }
+
   // Add a postgres header to the binary string and return it.
   proto.toString = function () {
-    return this.header + encode_int32(this.data.length + 4) + this.data;
+    return this.header + encode_int32(this.data.length + 4) + encode_int32(1) + this.data;
+  };
+
+  // Return data without headers (e.g. for negotiating with server about protocol version)
+  proto.toRawString = function () {
+    return this.data;
   };
 
   // Encode number as 32 bit 2s compliment
@@ -70,7 +88,7 @@
     this.data += fields.join("\0") + "\0\0";
     return this;
   };
-  
+
   proto.push_hash = function (hash) {
     for (var key in hash) {
       if (hash.hasOwnProperty(key)) {
@@ -87,9 +105,9 @@
 // TODO: Convert to use a moving pointer instead of creating a new substring
 //       each iteration.  This will help performance a bit on parsing.
 (function () {
-  
+
   var proto;
-  
+
   exports.Decoder = function (data) {
     this.data = data;
   };
@@ -122,7 +140,7 @@
     this.data = this.data.substr(len);
     return string;
   };
-  
+
   // Grab a null terminated string
   proto.shift_cstring = function () {
     var pos, string;
@@ -131,7 +149,7 @@
     this.data = this.data.substr(pos + 1);
     return string;
   };
-  
+
   // Grab a null terminated array of null terminated strings
   proto.shift_multi_cstring = function () {
     var pos, string;
@@ -140,7 +158,7 @@
     this.data = this.data.substr(pos + 1);
     return string;
   };
-  
+
 
 }());
 

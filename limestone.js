@@ -1,6 +1,6 @@
 // http://pastebin.com/f262be9bc
 
-var binary = require('./binary');
+var bits = require('./bits');
 var tcp = require('tcp');
 var sys = require('sys');
 
@@ -66,7 +66,7 @@ var Sphinx = {
 
     // Current version client commands
     Sphinx.clientCommand = {
-        "SEARCH": 0x116,
+        "SEARCH": 278,
         "EXCERPT": 0x100,
         "UPDATE": 0x102,
         "KEYWORDS": 0x100,
@@ -92,41 +92,90 @@ var Sphinx = {
         // server_conn.send(parseInt('00000000',2));
         // server_conn.send(parseInt('00000001',2));
         // server_conn.send(0x00000001);
-        server_conn.send(binary.pack('N', 1));
+        server_conn.send((new bits.Encoder()).push_int32(1).toRawString(), 'binary');
 
         // Waiting for answer
         server_conn.addListener('receive', function(data) {
-            var data_unpacked = binary.unpack('N*', data);
+            // var data_unpacked = binary.unpack('N*', data);
+            var receive_listeners = server_conn.listeners('receive');
+            var i;
+            for (i = 0; i < receive_listeners.length; i++) {
+                server_conn.removeListener('receive', receive_listeners[i]);
+            }
+            var protocol_version = (new bits.Decoder(data)).shift_int32();
+            var data_unpacked = {'': 1};
 
             var composeQuery = function(query) {
-                var req_main = binary.pack("NNNNN", 0, 20, Sphinx.searchMode.ALL, Sphinx.rankingMode.BM25, Sphinx.sortMode.RELEVANCE); // mode and limits
-                var req_sortby = binary.pack("N", 0); // "sort by" is not supported yet
-                var req_query_length = binary.pack('N', query.length); // Watch out for Unicode string length
-                var req_query = query; // We need to send it in separate object for it to be converted to ASCII
-                var req_weights = binary.pack( "N", 0); // weights is not supported yet
-                var req_index = binary.pack("N", 1) + '*'; // Watch out for string length
-                var req_marker = binary.pack('N', 1); // id64 range
+                // Header
 
-                var req_filters = binary.pack("N", 0); // filters is not supported yet
-                var req_grouping = binary.pack("NN", Sphinx.groupMode.DAY, 0); // Basic grouping is supported
 
-                var req_anchor = binary.pack("N", 0); // anchor is not supported yet
-                var req_indexWeights = binary.pack("N", 0); // Per-index weights is not supported yet
-                var req_maxQueryTime = binary.pack("N", 0); // Max query time is set to 0
-                var req_fieldWeights = binary.pack("N", 0); // Per-field weights is not supported yet
+                var request = (new bits.Encoder(0, 278)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
-                var req_comment = binary.pack("N", 0); // Comments is not supported yet
-                var req_overrides = binary.pack("N", 0); // Atribute overrides is not supported yet
+                // var req_main = binary.pack("NNNNN", 0, 20, Sphinx.searchMode.ALL, Sphinx.rankingMode.BM25, Sphinx.sortMode.RELEVANCE); // mode and limits
 
-                var req_select = binary.pack("N", 1) + '*'; // Watch out for string length
+                request.push_int32(0);
+                // var req_sortby = binary.pack("N", 0); // "sort by" is not supported yet
 
-                var req = req_main + req_sortby + req_query_length + req_query + req_weights + req_index + req_marker + req_filters + req_grouping + req_anchor + req_indexWeights + req_maxQueryTime + req_fieldWeights + req_comment + req_overrides + req_select;
+                request.push_int32(query.length);
+                // var req_query_length = binary.pack('N', query.length); // Watch out for Unicode string length
+
+                request.push_raw_string(query);
+                // var req_query = query; // We need to send it in separate object for it to be converted to ASCII
+
+                request.push_int32(0);
+                // var req_weights = binary.pack( "N", 0); // weights is not supported yet
+
+                request.push_int32(1).push_raw_string('*');
+                //var req_index = binary.pack("N", 1) + '*'; // Watch out for string length
+                request.push_int32(1);
+                //var req_marker = binary.pack('N', 1); // id64 range
+                request.push_int32(0).push_int32(0).push_int32(0).push_int32(0); // No limits for range
+
+                request.push_int32(0);
+                // var req_filters = binary.pack("N", 0); // filters is not supported yet
+                request.push_int32(Sphinx.groupMode.DAY);
+                request.push_int32(0); // Groupby length
+                // var req_grouping = binary.pack("NN", Sphinx.groupMode.DAY, 0); // Basic grouping is supported
+
+                request.push_int32(1000); // Maxmatches, default to 1000
+
+                request.push_int32("@group desc".length); // Groupsort
+                request.push_raw_string("@group desc");
+
+                request.push_int32(0); // Cutoff
+                request.push_int32(0); // Retrycount
+                request.push_int32(0); // Retrydelay
+
+                request.push_int32(0); // Group distinct
+
+                request.push_int32(0);
+                // var req_anchor = binary.pack("N", 0); // anchor is not supported yet
+                request.push_int32(0);
+                // var req_indexWeights = binary.pack("N", 0); // Per-index weights is not supported yet
+                request.push_int32(0);
+                // var req_maxQueryTime = binary.pack("N", 0); // Max query time is set to 0
+                request.push_int32(0);
+                // var req_fieldWeights = binary.pack("N", 0); // Per-field weights is not supported yet
+
+                request.push_int32(0);
+                // var req_comment = binary.pack("N", 0); // Comments is not supported yet
+                request.push_int32(0);
+                // var req_overrides = binary.pack("N", 0); // Atribute overrides is not supported yet
+
+                request.push_int32(1).push_raw_string('*');
+                // var req_select = binary.pack("N", 1) + '*'; // Watch out for string length
+
+                // request.push_int32(0);
+                // var req = req_main + req_sortby + req_query_length + req_query + req_weights + req_index + req_marker + req_filters + req_grouping + req_anchor + req_indexWeights + req_maxQueryTime + req_fieldWeights + req_comment + req_overrides + req_select;
 
                 // Add header to request
-                var request = binary.pack('nnNN', Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH, req.length, 1) + req;
+                // var request = binary.pack('nnNN', Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH, req.length, 1) + req;
 
-                server_conn.send(request, 'binary');
-                server_conn.send(binary.pack('N', 0x00), 'binary'); // end of query
+
+                // var request_header = (new bits.Encoder()).push_int16(Sphinx.command.SEARCH).push_int16(Sphinx.clientCommand.SEARCH).push_int32(request.toString().length).push_int32(1);
+                // server_conn.send(request_header.toString(), 'binary');
+                server_conn.send(request.toString(), 'binary');
+                // server_conn.send(binary.pack('N', 0x00), 'binary'); // end of query
 
                 /* server_conn.send(binary.pack('nnNN', Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH, 20 + query.length, 1), 'binary');
                 server_conn.send(req_main, 'binary');
@@ -152,14 +201,19 @@ var Sphinx = {
                 */
 
 
-                sys.puts('Request sent [' +  (24 + query.length) + ']');
+                sys.puts('Request sent: [' +  request.toString().length + ']');
+                var x;
+                for (x = 0; x < request.toString().length; x++) {
+                    sys.puts(x + ':' + request.toString().charCodeAt(x).toString(16));
+                }
+
                 server_conn.addListener('receive', function(data) {
                     // Got response!
                     sys.puts('Answer received:' + data + '[' + data.length + ']');
                 });
             };
 
-            sys.puts('Server data received: ' + JSON.stringify(data_unpacked));
+            sys.puts('Server data received: ' + protocol_version);
             if (data_unpacked[""] >= 1) {
 
                 // Remove listener after handshaking
@@ -170,8 +224,9 @@ var Sphinx = {
                 server_conn.removeListener('receive');
                 // Here is our answer. It contains 1+
                 sys.puts('Connection established, sending query');
+                sys.puts('text'.length);
 
-                composeQuery('Simple');
+                composeQuery('text');
 
                 //server_conn.close();
             }
