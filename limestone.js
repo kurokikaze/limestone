@@ -79,6 +79,15 @@ var Sphinx = {
         "WARNING": 3
     }
 
+    Sphinx.attribute = {
+        "INTEGER":        1,
+        "TIMESTAMP":      2,
+        "ORDINAL":        3,
+        "BOOL":           4,
+        "FLOAT":          5,
+        "BIGINT":         6,
+        "MULTI":          0x40000000
+    }
 
     sys.puts('Connecting to searchd...');
 
@@ -214,7 +223,9 @@ var Sphinx = {
 
                 output.fields = [];
                 output.attributes = [];
+                output.matches = [];
 
+                // Get fields
                 for (i = 0; i < output.num_fields; i++) {
                     var field = {};
                     field.length = response.shift_int32();
@@ -224,6 +235,7 @@ var Sphinx = {
 
                 output.num_attrs = response.shift_int32();
 
+                // Get attributes
                 for (i = 0; i < output.num_attrs; i++) {
                     var attribute = {};
                     attribute.length = response.shift_int32();
@@ -233,6 +245,63 @@ var Sphinx = {
                 }
 
                 output.match_count = response.shift_int32();
+                output.id64 = response.shift_int32();
+
+                // Get matches
+                for (i = 0; i < output.match_count; i++) {
+                    var match = {};
+
+                    if (output.id64 == 1) {
+                        // here we must fetch int64 document id
+                        // and immediately throw half of it away :)
+                        var id64 = response.shift_int32();
+                        match.doc = response.shift_int32();
+
+                        match.weight = response.shift_int32();
+                    } else {
+                        match.doc = response.shift_int32();
+
+                        match.weight = response.shift_int32();
+                    }
+
+                    var attrvals = [];
+                    match.attrs = {};
+
+                    //
+                    var attr_value;
+
+                    for (attribute in output.attributes) {
+                        // BIGINT size attributes
+                        if (attribute.type == Sphinx.attribute.BIGINT) {
+                            attr_value = response.shift_int32();
+                            attr_value = response.shift_int32();
+                            match.attrs[attribute.name] = attr_value;
+                            continue;
+                        }
+
+                        // FLOAT size attributes (32 bits)
+                        if (attribute.type == Sphinx.attribute.FLOAT) {
+                            attr = response.shift_int32();
+                            match.attrs[attribute.name] = attr_value;
+                            continue;
+                        }
+
+                        // We don't need this branch right now,
+                        // as it is covered by previous `if`
+                        // @todo: implement MULTI attribute type
+                        attr_value = response.shift_int32();
+                        match.attrs[attribute.name] = attr_value;
+                    }
+
+                    output.matches.push(match);
+
+                }
+
+                output.total = response.shift_int32();
+                output.total_found = response.shift_int32();
+                output.msecs = response.shift_int32();
+                output.words = response.shift_int32();
+
                 // @todo: implement
 
                 return output;
