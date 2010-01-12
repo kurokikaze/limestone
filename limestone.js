@@ -86,7 +86,7 @@ var Sphinx = {
         "BOOL":           4,
         "FLOAT":          5,
         "BIGINT":         6,
-        "MULTI":          0x40000000
+        "MULTI":          1073741824 // 0x40000000
     }
 
     sys.puts('Connecting to searchd...');
