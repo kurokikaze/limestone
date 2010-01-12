@@ -72,6 +72,13 @@ var Sphinx = {
         "QUERY": 0x100
     }
 
+    Sphinx.statusCode = {
+        "OK":      0,
+        "ERROR":   1,
+        "RETRY":   2,
+        "WARNING": 3
+    }
+
 
     sys.puts('Connecting to searchd...');
 
@@ -102,7 +109,7 @@ var Sphinx = {
                 // Header
 
 
-                var request = (new bits.Encoder(0, 278)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
+                var request = (new bits.Encoder(0, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
                 request.push_int32(0); // "sort by" is not supported yet
 
@@ -160,8 +167,37 @@ var Sphinx = {
                 server_conn.addListener('receive', function(data) {
                     // Got response!
                     sys.puts('Answer received:' + data + '[' + data.length + ']');
+                    // Command must match the one used in query
+                    var response = parseResult(data, Sphinx.clientCommand.SEARCH);
+                    sys.puts('Answer data:' + JSON.stringify(response));
                 });
             };
+
+            var parseResult = function(data, search_command) {
+                var output = {};
+                var response = new bits.Decoder(data);
+                var position = 0;
+                var data_length = data.length;
+
+                output.status = response.shift_int16();
+                output.version = response.shift_int16();
+
+                output.length = response.shift_int32();
+
+                if (output.length != data.length - 8) {
+                    sys.puts("failed to read searchd response (status=" + output.status + ", ver=" + output.version + ", len=" + output.length + ", read=" + (data.length - 8) + ")");
+                }
+
+                if (output.version < search_command) {
+                    sys.puts("searchd command older than client's version, some options might not work");
+                }
+
+                if (output.status == Sphinx.statusCode.WARNING) {
+                    sys.puts("WARNING: ");
+                }
+
+                return output;
+            }
 
             sys.puts('Server data received: ' + protocol_version);
             if (data_unpacked[""] >= 1) {
@@ -176,7 +212,7 @@ var Sphinx = {
                 sys.puts('Connection established, sending query');
                 sys.puts('text'.length);
 
-                composeQuery('text');
+                composeQuery('test');
 
                 //server_conn.close();
             }
