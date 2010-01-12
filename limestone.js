@@ -1,5 +1,3 @@
-// http://pastebin.com/f262be9bc
-
 var bits = require('./bits');
 var tcp = require('tcp');
 var sys = require('sys');
@@ -87,11 +85,6 @@ var Sphinx = {
         // Sending protocol version
         sys.puts('Sending version number...');
         // Here we must send 4 bytes, '0x00000001'
-        // server_conn.send(parseInt('00000000',2));
-        // server_conn.send(parseInt('00000000',2));
-        // server_conn.send(parseInt('00000000',2));
-        // server_conn.send(parseInt('00000001',2));
-        // server_conn.send(0x00000001);
         server_conn.send((new bits.Encoder()).push_int32(1).toRawString(), 'binary');
 
         // Waiting for answer
@@ -111,24 +104,18 @@ var Sphinx = {
 
                 var request = (new bits.Encoder(0, 278)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
-                // var req_main = binary.pack("NNNNN", 0, 20, Sphinx.searchMode.ALL, Sphinx.rankingMode.BM25, Sphinx.sortMode.RELEVANCE); // mode and limits
+                request.push_int32(0); // "sort by" is not supported yet
 
-                request.push_int32(0);
-                // var req_sortby = binary.pack("N", 0); // "sort by" is not supported yet
+                request.push_int32(query.length); // Query text length
 
-                request.push_int32(query.length);
-                // var req_query_length = binary.pack('N', query.length); // Watch out for Unicode string length
+                request.push_raw_string(query); // Query text
 
-                request.push_raw_string(query);
-                // var req_query = query; // We need to send it in separate object for it to be converted to ASCII
+                request.push_int32(0); // weights is not supported yet
 
-                request.push_int32(0);
-                // var req_weights = binary.pack( "N", 0); // weights is not supported yet
+                request.push_int32(1).push_raw_string('*'); // Indices used
 
-                request.push_int32(1).push_raw_string('*');
-                //var req_index = binary.pack("N", 1) + '*'; // Watch out for string length
-                request.push_int32(1);
-                //var req_marker = binary.pack('N', 1); // id64 range
+                request.push_int32(1); // id64 range marker
+
                 request.push_int32(0).push_int32(0).push_int32(0).push_int32(0); // No limits for range
 
                 request.push_int32(0);
@@ -148,58 +135,21 @@ var Sphinx = {
 
                 request.push_int32(0); // Group distinct
 
-                request.push_int32(0);
-                // var req_anchor = binary.pack("N", 0); // anchor is not supported yet
-                request.push_int32(0);
-                // var req_indexWeights = binary.pack("N", 0); // Per-index weights is not supported yet
-                request.push_int32(0);
-                // var req_maxQueryTime = binary.pack("N", 0); // Max query time is set to 0
-                request.push_int32(0);
-                // var req_fieldWeights = binary.pack("N", 0); // Per-field weights is not supported yet
+                request.push_int32(0); // anchor is not supported yet
 
-                request.push_int32(0);
-                // var req_comment = binary.pack("N", 0); // Comments is not supported yet
-                request.push_int32(0);
-                // var req_overrides = binary.pack("N", 0); // Atribute overrides is not supported yet
+                request.push_int32(0); // Per-index weights is not supported yet
 
-                request.push_int32(1).push_raw_string('*');
-                // var req_select = binary.pack("N", 1) + '*'; // Watch out for string length
+                request.push_int32(0); // Max query time is set to 0
 
-                // request.push_int32(0);
-                // var req = req_main + req_sortby + req_query_length + req_query + req_weights + req_index + req_marker + req_filters + req_grouping + req_anchor + req_indexWeights + req_maxQueryTime + req_fieldWeights + req_comment + req_overrides + req_select;
+                request.push_int32(0); // Per-field weights is not supported yet
 
-                // Add header to request
-                // var request = binary.pack('nnNN', Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH, req.length, 1) + req;
+                request.push_int32(0); // Comments is not supported yet
 
+                request.push_int32(0); // Atribute overrides is not supported yet
 
-                // var request_header = (new bits.Encoder()).push_int16(Sphinx.command.SEARCH).push_int16(Sphinx.clientCommand.SEARCH).push_int32(request.toString().length).push_int32(1);
-                // server_conn.send(request_header.toString(), 'binary');
+                request.push_int32(1).push_raw_string('*'); // Select-list
+
                 server_conn.send(request.toString(), 'binary');
-                // server_conn.send(binary.pack('N', 0x00), 'binary'); // end of query
-
-                /* server_conn.send(binary.pack('nnNN', Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH, 20 + query.length, 1), 'binary');
-                server_conn.send(req_main, 'binary');
-                server_conn.send(req_sortby, 'binary');
-                server_conn.send(req_query_length, 'binary');
-                server_conn.send(req_query, 'binary');
-                server_conn.send(req_index, 'binary');
-                server_conn.send(req_marker, 'binary');
-
-                server_conn.send(req_filters, 'binary');
-                server_conn.send(req_grouping, 'binary');
-
-                server_conn.send(req_anchor, 'binary');
-                server_conn.send(req_indexWeights, 'binary');
-                server_conn.send(req_maxQueryTime, 'binary');
-                server_conn.send(req_fieldWeights, 'binary');
-
-                server_conn.send(req_comment, 'binary');
-                server_conn.send(req_overrides, 'binary');
-
-                server_conn.send(req_select, 'binary');
-                server_conn.send(binary.pack('N', 0x00), 'binary'); // end of query
-                */
-
 
                 sys.puts('Request sent: [' +  request.toString().length + ']');
                 var x;
