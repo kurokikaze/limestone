@@ -65,11 +65,11 @@ var Sphinx = {
     // Current version client commands
     Sphinx.clientCommand = {
         "SEARCH": 278,
-        "EXCERPT": 0x100,
-        "UPDATE": 0x102,
-        "KEYWORDS": 0x100,
-        "STATUS": 0x100,
-        "QUERY": 0x100
+        "EXCERPT": 256,
+        "UPDATE": 258,
+        "KEYWORDS": 256,
+        "STATUS": 256,
+        "QUERY": 256
     }
 
     Sphinx.statusCode = {
