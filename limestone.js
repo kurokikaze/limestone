@@ -188,8 +188,6 @@ var Sphinx = {
             var getResponse = function(data, search_command) {
                 var output = {};
                 var response = new bits.Decoder(data);
-                var position = 0;
-                var data_length = data.length;
 
                 output.status = response.shift_int16();
                 output.version = response.shift_int16();
@@ -214,8 +212,6 @@ var Sphinx = {
             var parseSearchResponse = function (data) {
                 var output = {};
                 var response = new bits.Decoder(data);
-                var position = 0;
-                var data_length = data.length;
                 var i;
 
                 output.status = response.shift_int32();
