@@ -168,12 +168,15 @@ var Sphinx = {
                     // Got response!
                     sys.puts('Answer received:' + data + '[' + data.length + ']');
                     // Command must match the one used in query
-                    var response = parseResult(data, Sphinx.clientCommand.SEARCH);
-                    sys.puts('Answer data:' + JSON.stringify(response));
+                    var response = getResponse(data, Sphinx.clientCommand.SEARCH);
+
+                    var answer = parseSearchResponse(response);
+
+                    sys.puts('Answer data:' + JSON.stringify(answer));
                 });
             };
 
-            var parseResult = function(data, search_command) {
+            var getResponse = function(data, search_command) {
                 var output = {};
                 var response = new bits.Decoder(data);
                 var position = 0;
@@ -195,6 +198,42 @@ var Sphinx = {
                 if (output.status == Sphinx.statusCode.WARNING) {
                     sys.puts("WARNING: ");
                 }
+
+                return data.substring(8);
+            }
+
+            var parseSearchResponse = function (data) {
+                var output = {};
+                var response = new bits.Decoder(data);
+                var position = 0;
+                var data_length = data.length;
+                var i;
+
+                output.status = response.shift_int32();
+                output.num_fields = response.shift_int32();
+
+                output.fields = [];
+                output.attributes = [];
+
+                for (i = 0; i < output.num_fields; i++) {
+                    var field = {};
+                    field.length = response.shift_int32();
+                    field.name = response.shift_raw_string(field.length);
+                    output.fields.push(field);
+                }
+
+                output.num_attrs = response.shift_int32();
+
+                for (i = 0; i < output.num_attrs; i++) {
+                    var attribute = {};
+                    attribute.length = response.shift_int32();
+                    attribute.name = response.shift_raw_string(attribute.length);
+                    attribute.type = response.shift_int32();
+                    output.attributes.push(attribute);
+                }
+
+                output.match_count = response.shift_int32();
+                // @todo: implement
 
                 return output;
             }
