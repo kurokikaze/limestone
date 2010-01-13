@@ -103,7 +103,7 @@ var Sphinx = {
 
     server_conn.addListener('connect', function () {
         // Sending protocol version
-        sys.puts('Sending version number...');
+            // sys.puts('Sending version number...');
         // Here we must send 4 bytes, '0x00000001'
         server_conn.send((new bits.Encoder()).push_int32(1).toRawString(), 'binary');
 
@@ -203,12 +203,6 @@ var Sphinx = {
 
                 server_conn.send(request.toString(), 'binary');
 
-                sys.puts('Request sent: [' +  request.toString().length + ']');
-        //var x;
-        //for (x = 0; x < request.toString().length; x++) {
-        //    sys.puts(x + ':' + request.toString().charCodeAt(x).toString(16));
-        //}
-
         var promise = new process.Promise();
 
                 server_conn.addListener('receive', function(data) {
@@ -248,7 +242,7 @@ var Sphinx = {
                 }
 
                 if (output.status == Sphinx.statusCode.WARNING) {
-                    sys.puts("WARNING: ");
+            sys.puts("Server issued WARNING");
                 }
 
                 return data.substring(8);
@@ -292,6 +286,8 @@ var Sphinx = {
                 for (i = 0; i < output.match_count; i++) {
                     var match = {};
 
+            // Here server tells us which format for document IDs
+            // it uses: int64 or int32
                     if (output.id64 == 1) {
                         // here we must fetch int64 document id
                         // and immediately throw half of it away :)
@@ -300,6 +296,7 @@ var Sphinx = {
 
                         match.weight = response.shift_int32();
                     } else {
+                // Good news: document id fits our integers size :)
                         match.doc = response.shift_int32();
 
                         match.weight = response.shift_int32();
@@ -312,7 +309,7 @@ var Sphinx = {
                     var attr_value;
 
                     for (attribute in output.attributes) {
-                        // BIGINT size attributes
+                // BIGINT size attributes (64 bits)
                         if (attribute.type == Sphinx.attribute.BIGINT) {
                             attr_value = response.shift_int32();
                             attr_value = response.shift_int32();
@@ -348,26 +345,6 @@ var Sphinx = {
                 return output;
             }
 
-    // Old code
-    /*      sys.puts('Server data received: ' + protocol_version);
-            if (data_unpacked[""] >= 1) {
-
-                // Remove listener after handshaking
-                for (listener in server_conn.listeners('receive')) {
-                    server_conn.removeListener('receive', listener);
-                }
-
-                server_conn.removeListener('receive');
-                // Here is our answer. It contains 1+
-                sys.puts('Connection established, sending query');
-                sys.puts('text'.length);
-
-                composeQuery('test');
-
-                //server_conn.close();
-            }
-        });
-    });
 })();
 
 process.mixin(exports, Sphinx);
