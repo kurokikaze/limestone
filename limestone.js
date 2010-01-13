@@ -94,7 +94,7 @@ var Sphinx = {
     // Connect to Sphinx server
     Sphinx.connect = function(port, callback) {
 
-        server_conn = tcp.createConnection(Sphinx.port);
+        server_conn = tcp.createConnection(port || Sphinx.port);
     // disable Nagle algorithm
     server_conn.setNoDelay(true);
     server_conn.setEncoding('binary');
@@ -125,6 +125,9 @@ var Sphinx = {
                         server_conn.removeListener('receive', listener);
                     }
 
+                    // Simple connection status inducator
+                    connection_status = 1;
+
                     // Use callback
                     promise.emitSuccess();
 
@@ -143,7 +146,13 @@ var Sphinx = {
 
 
     Sphinx.query = function(query, callback) {
-        // Header
+
+
+        if (connection_status != 1) {
+            sys.puts("You must connect to server before issuing queries");
+            return false;
+
+        }
 
                 var request = (new bits.Encoder(0, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
