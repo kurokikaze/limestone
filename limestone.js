@@ -1,12 +1,12 @@
-var bits = require('./bits');
-var tcp = require('tcp');
-var sys = require('sys');
-
 var Sphinx = {
     'port':9312
 };
 
 (function() {
+    var bits = require('./bits');
+    var tcp = require('tcp');
+    var sys = require('sys');
+
     Sphinx.queries = [];
 
     // All search modes
@@ -210,7 +210,7 @@ var Sphinx = {
 
                     var answer = parseSearchResponse(response);
 
-            promise.emitSuccess();
+            promise.emitSuccess(answer);
                 });
 
         if (callback) {
