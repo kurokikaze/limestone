@@ -77,6 +77,12 @@
     return this;
   };
 
+  // Encode string and precede it with 32-bit int length
+  proto.push_lstring = function (text) {
+    this.data += encode_int32(text.length) + text;
+    return this;
+  };
+
   // Encode text as null terminated string
   proto.push_cstring = function (text) {
     this.data += text + "\0";
