@@ -204,7 +204,6 @@ var Sphinx = {
 
                 server_conn.addListener('receive', function(data) {
                     // Got response!
-                    sys.puts('Answer received:' + data + '[' + data.length + ']');
                     // Command must match the one used in query
                     var response = getResponse(data, Sphinx.clientCommand.SEARCH);
 
@@ -265,7 +264,7 @@ var Sphinx = {
                 // Get fields
                 for (i = 0; i < output.num_fields; i++) {
                     var field = {};
-            // field.length = response.shift_int32();
+
             field.name = response.shift_lstring();
                     output.fields.push(field);
                 }
@@ -275,7 +274,7 @@ var Sphinx = {
                 // Get attributes
                 for (i = 0; i < output.num_attrs; i++) {
                     var attribute = {};
-            // attribute.length = response.shift_int32();
+
             attribute.name = response.shift_lstring();
                     attribute.type = response.shift_int32();
                     output.attributes.push(attribute);
