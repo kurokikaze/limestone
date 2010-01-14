@@ -158,13 +158,11 @@ var Sphinx = {
 
                 request.push_int32(0); // "sort by" is not supported yet
 
-                request.push_int32(query.length); // Query text length
-
-                request.push_raw_string(query); // Query text
+        request.push_lstring(query); // Query text
 
                 request.push_int32(0); // weights is not supported yet
 
-                request.push_int32(1).push_raw_string('*'); // Indices used
+        request.push_lstring('*'); // Indices used
 
                 request.push_int32(1); // id64 range marker
 
@@ -178,8 +176,7 @@ var Sphinx = {
 
                 request.push_int32(1000); // Maxmatches, default to 1000
 
-                request.push_int32("@group desc".length); // Groupsort
-                request.push_raw_string("@group desc");
+        request.push_lstring("@group desc"); // Groupsort
 
                 request.push_int32(0); // Cutoff
                 request.push_int32(0); // Retrycount
@@ -199,7 +196,7 @@ var Sphinx = {
 
                 request.push_int32(0); // Atribute overrides is not supported yet
 
-                request.push_int32(1).push_raw_string('*'); // Select-list
+        request.push_lstring('*'); // Select-list
 
                 server_conn.send(request.toString(), 'binary');
 
@@ -223,6 +220,11 @@ var Sphinx = {
         return promise;
 
             };
+
+    Sphinx.disconnect = function() {
+        sys.puts('Disconnecting from server');
+        server_conn.close();
+    }
 
             var getResponse = function(data, search_command) {
                 var output = {};
@@ -263,8 +265,8 @@ var Sphinx = {
                 // Get fields
                 for (i = 0; i < output.num_fields; i++) {
                     var field = {};
-                    field.length = response.shift_int32();
-                    field.name = response.shift_raw_string(field.length);
+            // field.length = response.shift_int32();
+            field.name = response.shift_lstring();
                     output.fields.push(field);
                 }
 
@@ -273,8 +275,8 @@ var Sphinx = {
                 // Get attributes
                 for (i = 0; i < output.num_attrs; i++) {
                     var attribute = {};
-                    attribute.length = response.shift_int32();
-                    attribute.name = response.shift_raw_string(attribute.length);
+            // attribute.length = response.shift_int32();
+            attribute.name = response.shift_lstring();
                     attribute.type = response.shift_int32();
                     output.attributes.push(attribute);
                 }
@@ -308,7 +310,7 @@ var Sphinx = {
                     //
                     var attr_value;
 
-                    for (attribute in output.attributes) {
+            for (var attribute in output.attributes) {
                 // BIGINT size attributes (64 bits)
                         if (attribute.type == Sphinx.attribute.BIGINT) {
                             attr_value = response.shift_int32();

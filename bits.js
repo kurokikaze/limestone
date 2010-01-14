@@ -147,6 +147,14 @@
     return string;
   };
 
+  // Grab number of bytes as a string
+  proto.shift_lstring = function () {
+    var length = this.shift_int32();
+    var string = this.data.substr(0, length);
+    this.data = this.data.substr(length);
+    return string;
+  };
+
   // Grab a null terminated string
   proto.shift_cstring = function () {
     var pos, string;
