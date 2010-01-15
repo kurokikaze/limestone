@@ -68,14 +68,14 @@ var Sphinx = {
         "KEYWORDS": 256,
         "STATUS": 256,
         "QUERY": 256
-    }
+    };
 
     Sphinx.statusCode = {
         "OK":      0,
         "ERROR":   1,
         "RETRY":   2,
         "WARNING": 3
-    }
+    };
 
     Sphinx.attribute = {
         "INTEGER":        1,
@@ -85,7 +85,7 @@ var Sphinx = {
         "FLOAT":          5,
         "BIGINT":         6,
         "MULTI":          1073741824 // 0x40000000
-    }
+    };
 
     var server_conn;
     var connection_status;
@@ -121,6 +121,7 @@ var Sphinx = {
                 if (data_unpacked[""] >= 1) {
 
                     // Remove listener after handshaking
+                    var listener;
                     for (listener in server_conn.listeners('receive')) {
                         server_conn.removeListener('receive', listener);
                     }
@@ -137,7 +138,9 @@ var Sphinx = {
 
             });
         });
+        if (callback) {
         promise.addCallback(callback);
+        }
         return promise;
     }
 
@@ -145,8 +148,44 @@ var Sphinx = {
 
 
 
-    Sphinx.query = function(query, callback) {
+    Sphinx.query = function(query_raw, callback) {
+        var query;
 
+        var query_parameters = {
+            groupmode: Sphinx.groupMode.DAY,
+            groupsort: "@group desc",
+            indices: '*',
+            maxmatches: 1000,
+            selectlist: '*'
+        };
+
+        if (query_raw.groupmode) {
+            query_parameters.groupmode = query_raw.groupmode;
+        }
+
+        if (query_raw.groupsort) {
+            query_parameters.groupsort = query_raw.groupsort;
+        }
+
+        if (query_raw.indices) {
+            query_parameters.indices = query_raw.indices;
+        }
+
+        if (query_raw.maxmatches) {
+            query_parameters.maxmatches = query_raw.maxmatches;
+        }
+
+        if (query_raw.selectlist) {
+            query_parameters.groupmode = query_raw.selectlist;
+        }
+
+        if (query_raw.query) {
+            query = query_raw.query;
+            sys.puts('Query object');
+        } else {
+            query = query_raw.toString();
+            sys.puts('Query string ' + query_raw);
+        }
 
         if (connection_status != 1) {
             sys.puts("You must connect to server before issuing queries");
@@ -162,7 +201,7 @@ var Sphinx = {
 
                 request.push_int32(0); // weights is not supported yet
 
-        request.push_lstring('*'); // Indices used
+        request.push_lstring(query_parameters.indices); // Indices used
 
                 request.push_int32(1); // id64 range marker
 
@@ -170,13 +209,13 @@ var Sphinx = {
 
                 request.push_int32(0);
                 // var req_filters = binary.pack("N", 0); // filters is not supported yet
-                request.push_int32(Sphinx.groupMode.DAY);
+        request.push_int32(query_parameters.groupmode);
                 request.push_int32(0); // Groupby length
                 // var req_grouping = binary.pack("NN", Sphinx.groupMode.DAY, 0); // Basic grouping is supported
 
-                request.push_int32(1000); // Maxmatches, default to 1000
+        request.push_int32(query_parameters.maxmatches); // Maxmatches, default to 1000
 
-        request.push_lstring("@group desc"); // Groupsort
+        request.push_lstring(query_parameters.groupsort); // Groupsort
 
                 request.push_int32(0); // Cutoff
                 request.push_int32(0); // Retrycount
@@ -196,7 +235,7 @@ var Sphinx = {
 
                 request.push_int32(0); // Atribute overrides is not supported yet
 
-        request.push_lstring('*'); // Select-list
+        request.push_lstring(query_parameters.selectlist); // Select-list
 
                 server_conn.send(request.toString(), 'binary');
 
