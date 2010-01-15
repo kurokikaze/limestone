@@ -5,6 +5,5 @@ var limestone = require("./limestone"),
 limestone.connect(9312, function() {
     limestone.query({'query':'test', maxmatches:1}, function(answer){
         sys.puts("Extended search for ‘test’ yielded " + answer.match_count + " results: " + JSON.stringify(answer));
-        limestone.disconnect();
     });
 });
