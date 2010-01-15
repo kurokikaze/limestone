@@ -158,7 +158,8 @@ var Sphinx = {
             groupby: '',
             maxmatches: 1000,
             selectlist: '*',
-            weights: []
+            weights: [],
+            comment: ''
         };
 
         if (query_raw.groupmode) {
@@ -187,6 +188,10 @@ var Sphinx = {
 
         if (query_raw.weights) {
             query_parameters.weights = query_raw.weights;
+        }
+
+        if (query_raw.comment) {
+            query_parameters.comment = query_raw.comment;
         }
 
         if (query_raw.query) {
@@ -243,7 +248,7 @@ var Sphinx = {
 
                 request.push_int32(0); // Per-field weights is not supported yet
 
-                request.push_int32(0); // Comments is not supported yet
+        request.push_lstring(query_parameters.comment); // Comments is not supported yet
 
                 request.push_int32(0); // Atribute overrides is not supported yet
 
@@ -296,6 +301,10 @@ var Sphinx = {
                 if (output.status == Sphinx.statusCode.WARNING) {
             sys.puts("Server issued WARNING");
                 }
+
+        if (output.status == Sphinx.statusCode.ERROR) {
+            sys.puts("Server issued ERROR");
+        }
 
                 return data.substring(8);
             }
