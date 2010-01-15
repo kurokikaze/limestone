@@ -155,12 +155,18 @@ var Sphinx = {
             groupmode: Sphinx.groupMode.DAY,
             groupsort: "@group desc",
             indices: '*',
+            groupby: '',
             maxmatches: 1000,
-            selectlist: '*'
+            selectlist: '*',
+            weights: []
         };
 
         if (query_raw.groupmode) {
             query_parameters.groupmode = query_raw.groupmode;
+        }
+
+        if (query_raw.groupby) {
+            query_parameters.groupby = query_raw.groupby;
         }
 
         if (query_raw.groupsort) {
@@ -176,7 +182,11 @@ var Sphinx = {
         }
 
         if (query_raw.selectlist) {
-            query_parameters.groupmode = query_raw.selectlist;
+            query_parameters.selectlist = query_raw.selectlist;
+        }
+
+        if (query_raw.weights) {
+            query_parameters.weights = query_raw.weights;
         }
 
         if (query_raw.query) {
@@ -199,7 +209,10 @@ var Sphinx = {
 
         request.push_lstring(query); // Query text
 
-                request.push_int32(0); // weights is not supported yet
+        request.push_int32(query_parameters.weights.length); // weights is not supported yet
+        for (var weight in query_parameters.weights) {
+            request.push_int32(parseInt(weight));
+        }
 
         request.push_lstring(query_parameters.indices); // Indices used
 
@@ -207,11 +220,10 @@ var Sphinx = {
 
                 request.push_int32(0).push_int32(0).push_int32(0).push_int32(0); // No limits for range
 
-                request.push_int32(0);
-                // var req_filters = binary.pack("N", 0); // filters is not supported yet
+        request.push_int32(0); // filters is not supported yet
+
         request.push_int32(query_parameters.groupmode);
-                request.push_int32(0); // Groupby length
-                // var req_grouping = binary.pack("NN", Sphinx.groupMode.DAY, 0); // Basic grouping is supported
+        request.push_lstring(query_parameters.groupby); // Groupby length
 
         request.push_int32(query_parameters.maxmatches); // Maxmatches, default to 1000
 
