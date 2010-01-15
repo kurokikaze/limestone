@@ -154,6 +154,7 @@ var Sphinx = {
         var query_parameters = {
             groupmode: Sphinx.groupMode.DAY,
             groupsort: "@group desc",
+            groupdistinct: "",
             indices: '*',
             groupby: '',
             maxmatches: 1000,
@@ -172,6 +173,10 @@ var Sphinx = {
 
         if (query_raw.groupsort) {
             query_parameters.groupsort = query_raw.groupsort;
+        }
+
+        if (query_raw.groupdistinct) {
+            query_parameters.groupdistinct = query_raw.groupdistinct;
         }
 
         if (query_raw.indices) {
@@ -196,10 +201,8 @@ var Sphinx = {
 
         if (query_raw.query) {
             query = query_raw.query;
-            sys.puts('Query object');
         } else {
             query = query_raw.toString();
-            sys.puts('Query string ' + query_raw);
         }
 
         if (connection_status != 1) {
@@ -238,7 +241,7 @@ var Sphinx = {
                 request.push_int32(0); // Retrycount
                 request.push_int32(0); // Retrydelay
 
-                request.push_int32(0); // Group distinct
+        request.push_lstring(query_parameters.groupdistinct); // Group distinct
 
                 request.push_int32(0); // anchor is not supported yet
 
