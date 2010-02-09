@@ -105,38 +105,46 @@ var Sphinx = {
         // Sending protocol version
             // sys.puts('Sending version number...');
         // Here we must send 4 bytes, '0x00000001'
-        server_conn.send((new bits.Encoder()).push_int32(1).toRawString(), 'binary');
+        if (server_conn.readyState == 'open') {
+            server_conn.send((new bits.Encoder()).push_int32(1).toRawString(), 'binary');
 
-        // Waiting for answer
-        server_conn.addListener('receive', function(data) {
-            // var data_unpacked = binary.unpack('N*', data);
-            var receive_listeners = server_conn.listeners('receive');
-            var i;
-            for (i = 0; i < receive_listeners.length; i++) {
-                server_conn.removeListener('receive', receive_listeners[i]);
-            }
-            var protocol_version = (new bits.Decoder(data)).shift_int32();
-            var data_unpacked = {'': 1};
+            // Waiting for answer
+            server_conn.addListener('receive', function(data) {
+                // var data_unpacked = binary.unpack('N*', data);
+                var receive_listeners = server_conn.listeners('receive');
+                var i;
+                for (i = 0; i < receive_listeners.length; i++) {
+                    server_conn.removeListener('receive', receive_listeners[i]);
+                }
+                var protocol_version = (new bits.Decoder(data)).shift_int32();
+                var data_unpacked = {'': 1};
 
-                if (data_unpacked[""] >= 1) {
+                    if (data_unpacked[""] >= 1) {
 
-                    // Remove listener after handshaking
-                    var listener;
-                    for (listener in server_conn.listeners('receive')) {
-                        server_conn.removeListener('receive', listener);
+                        // Remove listener after handshaking
+                        var listener;
+                        for (listener in server_conn.listeners('receive')) {
+                            server_conn.removeListener('receive', listener);
+                        }
+
+                        // Simple connection status inducator
+                        connection_status = 1;
+
+                        // Use callback
+                        promise.emitSuccess();
+
+                    } else {
+                            promise.emitError('Wrong protocol version: ' + protocol_version);
                     }
 
-                    // Simple connection status inducator
-                    connection_status = 1;
+                });
 
-                    // Use callback
-                    promise.emitSuccess();
-
-                } else {
-                    promise.emitError('Wrong protocol version');
-                }
-
-            });
+                server_conn.addListener('eof', function() {
+                   sys.puts('end of data');
+                });
+            } else {
+                sys.puts('Connection is ' + server_conn.readyState + ' in OnConnect');
+            }
         });
         if (callback) {
         promise.addCallback(callback);
@@ -144,7 +152,7 @@ var Sphinx = {
         return promise;
     }
 
-    sys.puts('Connecting to searchd...');
+    // sys.puts('Connecting to searchd...');
 
 
 
@@ -257,7 +265,11 @@ var Sphinx = {
 
         request.push_lstring(query_parameters.selectlist); // Select-list
 
+        if (server_conn.readyState == 'open') {
                 server_conn.send(request.toString(), 'binary');
+        } else {
+            sys.puts('Connection is ' + server_conn.readyState);
+        }
 
         var promise = new process.Promise();
 
@@ -280,37 +292,37 @@ var Sphinx = {
             };
 
     Sphinx.disconnect = function() {
-        sys.puts('Disconnecting from server');
+        // sys.puts('Disconnecting from server');
         server_conn.close();
     }
 
-            var getResponse = function(data, search_command) {
-                var output = {};
-                var response = new bits.Decoder(data);
+    var getResponse = function(data, search_command) {
+        var output = {};
+        var response = new bits.Decoder(data);
 
-                output.status = response.shift_int16();
-                output.version = response.shift_int16();
+        output.status = response.shift_int16();
+        output.version = response.shift_int16();
 
-                output.length = response.shift_int32();
+        output.length = response.shift_int32();
 
-                if (output.length != data.length - 8) {
-                    sys.puts("failed to read searchd response (status=" + output.status + ", ver=" + output.version + ", len=" + output.length + ", read=" + (data.length - 8) + ")");
-                }
+        if (output.length != data.length - 8) {
+            sys.puts("failed to read searchd response (status=" + output.status + ", ver=" + output.version + ", len=" + output.length + ", read=" + (data.length - 8) + ")");
+        }
 
-                if (output.version < search_command) {
-                    sys.puts("searchd command older than client's version, some options might not work");
-                }
+        if (output.version < search_command) {
+            sys.puts("searchd command older than client's version, some options might not work");
+        }
 
-                if (output.status == Sphinx.statusCode.WARNING) {
-            sys.puts("Server issued WARNING");
-                }
+        if (output.status == Sphinx.statusCode.WARNING) {
+    sys.puts("Server issued WARNING");
+        }
 
         if (output.status == Sphinx.statusCode.ERROR) {
             sys.puts("Server issued ERROR");
         }
 
-                return data.substring(8);
-            }
+        return data.substring(8);
+    }
 
             var parseSearchResponse = function (data) {
                 var output = {};
@@ -366,13 +378,13 @@ var Sphinx = {
                         match.weight = response.shift_int32();
                     }
 
-                    var attrvals = [];
                     match.attrs = {};
 
                     //
                     var attr_value;
+            // var attribute;
 
-            for (var attribute in output.attributes) {
+            for (attribute in output.attributes) {
                 // BIGINT size attributes (64 bits)
                         if (attribute.type == Sphinx.attribute.BIGINT) {
                             attr_value = response.shift_int32();
