@@ -160,58 +160,19 @@ var Sphinx = {
         var query;
 
         var query_parameters = {
-            groupmode: Sphinx.groupMode.DAY,
-            groupsort: "@group desc",
-            groupdistinct: "",
-            indices: '*',
-            groupby: '',
-            maxmatches: 1000,
-            selectlist: '*',
-            weights: [],
-            comment: ''
+            groupmode: query_raw.groupmode || Sphinx.groupMode.DAY,
+            groupsort: query_raw.groupsort || "@group desc",
+            sortby: query_raw.sortby || "",
+            groupdistinct: query_raw.groupdistinct || "",
+            indices: query_raw.indices || '*',
+            groupby: query_raw.groupby || '',
+            maxmatches: query_raw.maxmatches || 1000,
+            selectlist: query_raw.selectlist || '*',
+            weights: query_parameters.weights || [],
+            comment: query_raw.comment || ''
         };
 
-        if (query_raw.groupmode) {
-            query_parameters.groupmode = query_raw.groupmode;
-        }
-
-        if (query_raw.groupby) {
-            query_parameters.groupby = query_raw.groupby;
-        }
-
-        if (query_raw.groupsort) {
-            query_parameters.groupsort = query_raw.groupsort;
-        }
-
-        if (query_raw.groupdistinct) {
-            query_parameters.groupdistinct = query_raw.groupdistinct;
-        }
-
-        if (query_raw.indices) {
-            query_parameters.indices = query_raw.indices;
-        }
-
-        if (query_raw.maxmatches) {
-            query_parameters.maxmatches = query_raw.maxmatches;
-        }
-
-        if (query_raw.selectlist) {
-            query_parameters.selectlist = query_raw.selectlist;
-        }
-
-        if (query_raw.weights) {
-            query_parameters.weights = query_raw.weights;
-        }
-
-        if (query_raw.comment) {
-            query_parameters.comment = query_raw.comment;
-        }
-
-        if (query_raw.query) {
-            query = query_raw.query;
-        } else {
-            query = query_raw.toString();
-        }
+        query = query_raw.query || query_raw.toString();
 
         if (connection_status != 1) {
             sys.puts("You must connect to server before issuing queries");
@@ -219,9 +180,9 @@ var Sphinx = {
 
         }
 
-                var request = (new bits.Encoder(0, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
+        var request = (new bits.Encoder(0, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
-                request.push_int32(0); // "sort by" is not supported yet
+        request.push_lstring(query_parameters.sortby); // Sort criteria
 
         request.push_lstring(query); // Query text
 
@@ -232,9 +193,9 @@ var Sphinx = {
 
         request.push_lstring(query_parameters.indices); // Indices used
 
-                request.push_int32(1); // id64 range marker
+        request.push_int32(1); // id64 range marker
 
-                request.push_int32(0).push_int32(0).push_int32(0).push_int32(0); // No limits for range
+        request.push_int32(0).push_int32(0).push_int32(0).push_int32(0); // No limits for range
 
         request.push_int32(0); // filters is not supported yet
 
@@ -245,43 +206,39 @@ var Sphinx = {
 
         request.push_lstring(query_parameters.groupsort); // Groupsort
 
-                request.push_int32(0); // Cutoff
-                request.push_int32(0); // Retrycount
-                request.push_int32(0); // Retrydelay
+        request.push_int32(0); // Cutoff
+        request.push_int32(0); // Retrycount
+        request.push_int32(0); // Retrydelay
 
         request.push_lstring(query_parameters.groupdistinct); // Group distinct
 
-                request.push_int32(0); // anchor is not supported yet
+        request.push_int32(0); // anchor is not supported yet
 
-                request.push_int32(0); // Per-index weights is not supported yet
+        request.push_int32(0); // Per-index weights is not supported yet
 
-                request.push_int32(0); // Max query time is set to 0
+        request.push_int32(0); // Max query time is set to 0
 
-                request.push_int32(0); // Per-field weights is not supported yet
+        request.push_int32(0); // Per-field weights is not supported yet
 
         request.push_lstring(query_parameters.comment); // Comments is not supported yet
 
-                request.push_int32(0); // Atribute overrides is not supported yet
+        request.push_int32(0); // Atribute overrides is not supported yet
 
         request.push_lstring(query_parameters.selectlist); // Select-list
 
-        if (server_conn.readyState == 'open') {
-                server_conn.send(request.toString(), 'binary');
-        } else {
-            sys.puts('Connection is ' + server_conn.readyState);
-        }
+        server_conn.send(request.toString(), 'binary');
 
         var promise = new process.Promise();
 
-                server_conn.addListener('receive', function(data) {
-                    // Got response!
-                    // Command must match the one used in query
-                    var response = getResponse(data, Sphinx.clientCommand.SEARCH);
+        server_conn.addListener('receive', function(data) {
+            // Got response!
+            // Command must match the one used in query
+            var response = getResponse(data, Sphinx.clientCommand.SEARCH);
 
-                    var answer = parseSearchResponse(response);
+            var answer = parseSearchResponse(response);
 
             promise.emitSuccess(answer);
-                });
+        });
 
         if (callback) {
             promise.addCallback(callback);
@@ -289,7 +246,7 @@ var Sphinx = {
 
         return promise;
 
-            };
+    };
 
     Sphinx.disconnect = function() {
         // sys.puts('Disconnecting from server');
