@@ -1,0 +1,22 @@
+{
+    "name":"Limestone",
+    "description":"Sphinx search server connector for Node.js",
+    "version":"v0.0.1",
+    "keywords":"sphinx, search, searchd, text",
+    "maintainers":[{
+       "name": "Serge Shirokov",
+       "email": "bolter.fire@gmail.com",
+       "web": "http://kuroikaze85.wordpress.com"
+    }],
+    "bugs":"http://github.com/kurokikaze/limestone/issues",
+    "licenses": [{
+       "type": "Creative Commons - Attribution 3.0",
+       "url": "http://creativecommons.org/licenses/by/3.0/",
+    }],
+    "repositories": [{
+        "type": "git",
+        "url": "git://github.com/kurokikaze/limestone"
+    }],
+    "engine":"node",
+    "implements": [ "CommonJS/Modules/1.0"]
+}

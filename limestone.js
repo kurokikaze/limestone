@@ -4,7 +4,7 @@ var Sphinx = {
 
 (function() {
     var bits = require('./bits');
-    var tcp = require('tcp');
+    var tcp = require('net');
     var sys = require('sys');
 
     Sphinx.queries = [];
@@ -95,61 +95,59 @@ var Sphinx = {
     Sphinx.connect = function(port, callback) {
 
         server_conn = tcp.createConnection(port || Sphinx.port);
-    // disable Nagle algorithm
-    server_conn.setNoDelay(true);
-    server_conn.setEncoding('binary');
+        // disable Nagle algorithm
+        server_conn.setNoDelay(true);
+        server_conn.setEncoding('binary');
 
-        var promise = new process.Promise();
+        //var promise = new process.Promise();
 
-    server_conn.addListener('connect', function () {
-        // Sending protocol version
+        server_conn.addListener('connect', function () {
+
+            // sys.puts('Connected, sending protocol version... State is ' + server_conn.readyState);
+            // Sending protocol version
             // sys.puts('Sending version number...');
-        // Here we must send 4 bytes, '0x00000001'
-        if (server_conn.readyState == 'open') {
-            server_conn.send((new bits.Encoder()).push_int32(1).toRawString(), 'binary');
+            // Here we must send 4 bytes, '0x00000001'
+            if (server_conn.readyState == 'open') {
+                server_conn.write((new bits.Encoder()).push_int32(1).toRawString(), 'binary');
 
-            // Waiting for answer
-            server_conn.addListener('receive', function(data) {
-                // var data_unpacked = binary.unpack('N*', data);
-                var receive_listeners = server_conn.listeners('receive');
-                var i;
-                for (i = 0; i < receive_listeners.length; i++) {
-                    server_conn.removeListener('receive', receive_listeners[i]);
-                }
-                var protocol_version = (new bits.Decoder(data)).shift_int32();
-                var data_unpacked = {'': 1};
+                // Waiting for answer
+                server_conn.addListener('data', function(data) {
+                    // sys.puts('Data received from server');
+
+                    // var data_unpacked = binary.unpack('N*', data);
+                    var receive_listeners = server_conn.listeners('data');
+                    var i;
+                    for (i = 0; i < receive_listeners.length; i++) {
+                        server_conn.removeListener('data', receive_listeners[i]);
+                    }
+                    var protocol_version = (new bits.Decoder(data)).shift_int32();
+                    var data_unpacked = {'': 1};
 
                     if (data_unpacked[""] >= 1) {
 
                         // Remove listener after handshaking
                         var listener;
-                        for (listener in server_conn.listeners('receive')) {
-                            server_conn.removeListener('receive', listener);
+                        for (listener in server_conn.listeners('data')) {
+                            server_conn.removeListener('data', listener);
                         }
 
                         // Simple connection status inducator
                         connection_status = 1;
 
                         // Use callback
-                        promise.emitSuccess();
+                        // promise.emitSuccess();
+                        callback(null);
 
                     } else {
-                            promise.emitError('Wrong protocol version: ' + protocol_version);
+                        callback(new Error('Wrong protocol version: ' + protocol_version));
                     }
 
                 });
-
-                server_conn.addListener('eof', function() {
-                   sys.puts('end of data');
-                });
             } else {
-                sys.puts('Connection is ' + server_conn.readyState + ' in OnConnect');
+                callback(new Error('Connection is ' + server_conn.readyState + ' in OnConnect'));
             }
         });
-        if (callback) {
-        promise.addCallback(callback);
-        }
-        return promise;
+
     }
 
     // sys.puts('Connecting to searchd...');
@@ -160,29 +158,68 @@ var Sphinx = {
         var query;
 
         var query_parameters = {
-            groupmode: query_raw.groupmode || Sphinx.groupMode.DAY,
-            groupsort: query_raw.groupsort || "@group desc",
-            sortby: query_raw.sortby || "",
-            groupdistinct: query_raw.groupdistinct || "",
-            indices: query_raw.indices || '*',
-            groupby: query_raw.groupby || '',
-            maxmatches: query_raw.maxmatches || 1000,
-            selectlist: query_raw.selectlist || '*',
-            weights: query_parameters.weights || [],
-            comment: query_raw.comment || ''
+            groupmode: Sphinx.groupMode.DAY,
+            groupsort: "@group desc",
+            groupdistinct: "",
+            indices: '*',
+            groupby: '',
+            maxmatches: 1000,
+            selectlist: '*',
+            weights: [],
+            comment: ''
         };
 
-        query = query_raw.query || query_raw.toString();
+        if (query_raw.groupmode) {
+            query_parameters.groupmode = query_raw.groupmode;
+        }
 
-        if (connection_status != 1) {
+        if (query_raw.groupby) {
+            query_parameters.groupby = query_raw.groupby;
+        }
+
+        if (query_raw.groupsort) {
+            query_parameters.groupsort = query_raw.groupsort;
+        }
+
+        if (query_raw.groupdistinct) {
+            query_parameters.groupdistinct = query_raw.groupdistinct;
+        }
+
+        if (query_raw.indices) {
+            query_parameters.indices = query_raw.indices;
+        }
+
+        if (query_raw.maxmatches) {
+            query_parameters.maxmatches = query_raw.maxmatches;
+        }
+
+        if (query_raw.selectlist) {
+            query_parameters.selectlist = query_raw.selectlist;
+        }
+
+        if (query_raw.weights) {
+            query_parameters.weights = query_raw.weights;
+        }
+
+        if (query_raw.comment) {
+            query_parameters.comment = query_raw.comment;
+        }
+
+        if (query_raw.query) {
+            query = query_raw.query;
+        } else {
+            query = query_raw.toString();
+        }
+
+        /* if (connection_status != 1) {
             sys.puts("You must connect to server before issuing queries");
             return false;
 
-        }
+        }  */
 
         var request = (new bits.Encoder(0, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
-        request.push_lstring(query_parameters.sortby); // Sort criteria
+        request.push_int32(0); // "sort by" is not supported yet
 
         request.push_lstring(query); // Query text
 
@@ -226,31 +263,31 @@ var Sphinx = {
 
         request.push_lstring(query_parameters.selectlist); // Select-list
 
-        server_conn.send(request.toString(), 'binary');
+        //if (server_conn.readyState == 'open' || server_conn.readyState == 'opening' ) {
+            server_conn.write(request.toString(), 'binary');
+        //} else {
+        //    sys.puts('Connection is ' + server_conn.readyState);
+        //}
 
-        var promise = new process.Promise();
+        // var promise = new process.Promise();
 
-        server_conn.addListener('receive', function(data) {
+        server_conn.addListener('data', function(data) {
             // Got response!
             // Command must match the one used in query
             var response = getResponse(data, Sphinx.clientCommand.SEARCH);
 
             var answer = parseSearchResponse(response);
 
-            promise.emitSuccess(answer);
+            //promise.emitSuccess(answer);
+            // sys.puts('Returning answer: ' . answer)
+            callback(null, answer);
+
         });
-
-        if (callback) {
-            promise.addCallback(callback);
-        }
-
-        return promise;
 
     };
 
     Sphinx.disconnect = function() {
-        // sys.puts('Disconnecting from server');
-        server_conn.close();
+        server_conn.end();
     }
 
     var getResponse = function(data, search_command) {
@@ -263,120 +300,120 @@ var Sphinx = {
         output.length = response.shift_int32();
 
         if (output.length != data.length - 8) {
-            sys.puts("failed to read searchd response (status=" + output.status + ", ver=" + output.version + ", len=" + output.length + ", read=" + (data.length - 8) + ")");
+            sys.puts("Failed to read searchd response (status=" + output.status + ", ver=" + output.version + ", len=" + output.length + ", read=" + (data.length - 8) + ")");
         }
 
         if (output.version < search_command) {
-            sys.puts("searchd command older than client's version, some options might not work");
+            sys.puts("Searchd command older than client's version, some options might not work");
         }
 
         if (output.status == Sphinx.statusCode.WARNING) {
-    sys.puts("Server issued WARNING");
+            sys.puts("Server issued WARNING: " + data.substring(8));
         }
 
         if (output.status == Sphinx.statusCode.ERROR) {
-            sys.puts("Server issued ERROR");
+            sys.puts("Server issued ERROR: " + data.substring(8));
         }
 
         return data.substring(8);
     }
 
-            var parseSearchResponse = function (data) {
-                var output = {};
-                var response = new bits.Decoder(data);
-                var i;
+    var parseSearchResponse = function (data) {
+        var output = {};
+        var response = new bits.Decoder(data);
+        var i;
 
-                output.status = response.shift_int32();
-                output.num_fields = response.shift_int32();
+        output.status = response.shift_int32();
+        output.num_fields = response.shift_int32();
 
-                output.fields = [];
-                output.attributes = [];
-                output.matches = [];
+        output.fields = [];
+        output.attributes = [];
+        output.matches = [];
 
-                // Get fields
-                for (i = 0; i < output.num_fields; i++) {
-                    var field = {};
+        // Get fields
+        for (i = 0; i < output.num_fields; i++) {
+            var field = {};
 
             field.name = response.shift_lstring();
-                    output.fields.push(field);
-                }
 
-                output.num_attrs = response.shift_int32();
+            output.fields.push(field);
+        }
 
-                // Get attributes
-                for (i = 0; i < output.num_attrs; i++) {
-                    var attribute = {};
+        output.num_attrs = response.shift_int32();
+
+        // Get attributes
+        for (i = 0; i < output.num_attrs; i++) {
+            var attribute = {};
 
             attribute.name = response.shift_lstring();
-                    attribute.type = response.shift_int32();
-                    output.attributes.push(attribute);
-                }
+            attribute.type = response.shift_int32();
 
-                output.match_count = response.shift_int32();
-                output.id64 = response.shift_int32();
+            output.attributes.push(attribute);
+        }
 
-                // Get matches
-                for (i = 0; i < output.match_count; i++) {
-                    var match = {};
+        output.match_count = response.shift_int32();
+        output.id64 = response.shift_int32();
+
+        // Get matches
+        for (i = 0; i < output.match_count; i++) {
+            var match = {};
 
             // Here server tells us which format for document IDs
             // it uses: int64 or int32
-                    if (output.id64 == 1) {
-                        // here we must fetch int64 document id
-                        // and immediately throw half of it away :)
-                        var id64 = response.shift_int32();
-                        match.doc = response.shift_int32();
-
-                        match.weight = response.shift_int32();
-                    } else {
+            if (output.id64 == 1) {
+                // here we must fetch int64 document id
+                // and immediately throw half of it away :)
+                var id64 = response.shift_int32();
+                match.doc = response.shift_int32();
+                match.weight = response.shift_int32();
+            } else {
                 // Good news: document id fits our integers size :)
-                        match.doc = response.shift_int32();
+                match.doc = response.shift_int32();
+                match.weight = response.shift_int32();
+            }
 
-                        match.weight = response.shift_int32();
-                    }
+            match.attrs = {};
 
-                    match.attrs = {};
-
-                    //
-                    var attr_value;
+            //
+            var attr_value;
             // var attribute;
 
             for (attribute in output.attributes) {
                 // BIGINT size attributes (64 bits)
-                        if (attribute.type == Sphinx.attribute.BIGINT) {
-                            attr_value = response.shift_int32();
-                            attr_value = response.shift_int32();
-                            match.attrs[attribute.name] = attr_value;
-                            continue;
-                        }
-
-                        // FLOAT size attributes (32 bits)
-                        if (attribute.type == Sphinx.attribute.FLOAT) {
-                            attr = response.shift_int32();
-                            match.attrs[attribute.name] = attr_value;
-                            continue;
-                        }
-
-                        // We don't need this branch right now,
-                        // as it is covered by previous `if`
-                        // @todo: implement MULTI attribute type
-                        attr_value = response.shift_int32();
-                        match.attrs[attribute.name] = attr_value;
-                    }
-
-                    output.matches.push(match);
-
+                if (attribute.type == Sphinx.attribute.BIGINT) {
+                    attr_value = response.shift_int32();
+                    attr_value = response.shift_int32();
+                    match.attrs[attribute.name] = attr_value;
+                    continue;
                 }
 
-                output.total = response.shift_int32();
-                output.total_found = response.shift_int32();
-                output.msecs = response.shift_int32();
-                output.words = response.shift_int32();
+                // FLOAT size attributes (32 bits)
+                if (attribute.type == Sphinx.attribute.FLOAT) {
+                    attr = response.shift_int32();
+                    match.attrs[attribute.name] = attr_value;
+                    continue;
+                }
+
+                // We don't need this branch right now,
+                // as it is covered by previous `if`
+                // @todo: implement MULTI attribute type
+                attr_value = response.shift_int32();
+                match.attrs[attribute.name] = attr_value;
+            }
+
+            output.matches.push(match);
+
+        }
+
+        output.total = response.shift_int32();
+        output.total_found = response.shift_int32();
+        output.msecs = response.shift_int32();
+        output.words = response.shift_int32();
 
         // @todo: implement words
 
-                return output;
-            }
+        return output;
+    }
 
 })();
 
