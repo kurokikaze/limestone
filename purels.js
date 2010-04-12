@@ -4,7 +4,7 @@ var limestone = require("./limestone"),
 // 9312 is standard Sphinx port
 limestone.connect(9312, function(err) {
     if (err) {
-        sys.puts('Connection error: ' . err);
+        sys.puts('Connection error: ' + err);
     }
     sys.puts('Connected, sending query');
     limestone.query({'query':'test', maxmatches:1}, function(err, answer) {
