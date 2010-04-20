@@ -263,13 +263,8 @@ var Sphinx = {
 
         request.push_lstring(query_parameters.selectlist); // Select-list
 
-        //if (server_conn.readyState == 'open' || server_conn.readyState == 'opening' ) {
             server_conn.write(request.toString(), 'binary');
-        //} else {
-        //    sys.puts('Connection is ' + server_conn.readyState);
-        //}
 
-        // var promise = new process.Promise();
 
         server_conn.addListener('data', function(data) {
             // Got response!
@@ -278,8 +273,6 @@ var Sphinx = {
 
             var answer = parseSearchResponse(response);
 
-            //promise.emitSuccess(answer);
-            // sys.puts('Returning answer: ' . answer)
             callback(null, answer);
 
         });
@@ -383,14 +376,14 @@ var Sphinx = {
                 if (attribute.type == Sphinx.attribute.BIGINT) {
                     attr_value = response.shift_int32();
                     attr_value = response.shift_int32();
-                    match.attrs[attribute.name] = attr_value;
+                    match.attrs[output.attributes[attribute].name.name] = attr_value;
                     continue;
                 }
 
                 // FLOAT size attributes (32 bits)
-                if (attribute.type == Sphinx.attribute.FLOAT) {
+                if (output.attributes[attribute].type == Sphinx.attribute.FLOAT) {
                     attr = response.shift_int32();
-                    match.attrs[attribute.name] = attr_value;
+                    match.attrs[output.attributes[attribute].name] = attr_value;
                     continue;
                 }
 
@@ -398,7 +391,7 @@ var Sphinx = {
                 // as it is covered by previous `if`
                 // @todo: implement MULTI attribute type
                 attr_value = response.shift_int32();
-                match.attrs[attribute.name] = attr_value;
+                match.attrs[output.attributes[attribute].name] = attr_value;
             }
 
             output.matches.push(match);
@@ -408,7 +401,12 @@ var Sphinx = {
         output.total = response.shift_int32();
         output.total_found = response.shift_int32();
         output.msecs = response.shift_int32();
-        output.words = response.shift_int32();
+        output.words_count = response.shift_int32();
+        output.words = [];
+        for (i = 0; i < output.words; i++) {
+            output.words.push(response.shift_lstring());
+        }
+        // sys.puts('Unused data:' + response.length + ' bytes');
 
         // @todo: implement words
 
