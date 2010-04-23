@@ -9,6 +9,6 @@ limestone.connect(9312, function(err) {
     sys.puts('Connected, sending query');
     limestone.query({'query':'test', maxmatches:1}, function(err, answer) {
         limestone.disconnect();
-        sys.puts("Extended search for ‘test’ yielded " + answer.match_count + " results: " + JSON.stringify(answer));
+        sys.puts("Extended search for �?test’ yielded " + answer.match_count + " results: " + JSON.stringify(answer));
     });
 });

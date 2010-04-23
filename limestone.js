@@ -265,7 +265,6 @@ var Sphinx = {
 
             server_conn.write(request.toString(), 'binary');
 
-
         server_conn.addListener('data', function(data) {
             // Got response!
             // Command must match the one used in query
@@ -376,7 +375,7 @@ var Sphinx = {
                 if (attribute.type == Sphinx.attribute.BIGINT) {
                     attr_value = response.shift_int32();
                     attr_value = response.shift_int32();
-                    match.attrs[output.attributes[attribute].name.name] = attr_value;
+                    match.attrs[output.attributes[attribute].name] = attr_value;
                     continue;
                 }
 
