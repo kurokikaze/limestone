@@ -45,8 +45,17 @@
   }
 
   // Add a postgres header to the binary string and return it.
-  proto.toString = function () {
-    return this.header + encode_int32(this.data.length + 4) + encode_int32(1) + this.data;
+  proto.toString = function (noCount) {
+    noCount = noCount | false;
+
+  var out_string = '';
+    if (noCount) {
+      out_string = this.header + encode_int32(this.data.length) + this.data;
+    } else {
+      out_string = this.header + encode_int32(this.data.length + 4) + encode_int32(1) + this.data;
+    }
+
+    return out_string;
   };
 
   // Return data without headers (e.g. for negotiating with server about protocol version)
