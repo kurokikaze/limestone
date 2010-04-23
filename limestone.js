@@ -217,7 +217,7 @@ var Sphinx = {
 
         }  */
 
-        var request = (new bits.Encoder(0, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
+        var request = (new bits.Encoder(Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
         request.push_int32(0); // "sort by" is not supported yet
 
@@ -403,7 +403,7 @@ var Sphinx = {
         output.msecs = response.shift_int32();
         output.words_count = response.shift_int32();
         output.words = [];
-        for (i = 0; i < output.words; i++) {
+        for (i = 0; i <=output.words; i++) {
             output.words.push(response.shift_lstring());
         }
         // sys.puts('Unused data:' + response.length + ' bytes');
@@ -411,6 +411,87 @@ var Sphinx = {
         // @todo: implement words
 
         return output;
+    }
+
+    Sphinx.buildExcerpts = function (matches, index, words, options, callback) {
+
+        if (typeof words == 'Array') {
+            words = words.join(',');
+        }
+        index = index || "*";
+
+        options = {
+            beforeMatch : options.beforeMatch || '<b>',
+            afterMatch : options.afterMatch || '</b>',
+            chunkSeparator : options.chunkSeparator || '...',
+            limit : options.limit || 256,
+            around : options.around || 5,
+            exactPhrase : options.exactPhrase || false,
+            singlePassage : options.singlePassage || false,
+            useBoundaries : options.useBoundaries || false,
+            weightOrder : options.weightOrder || false
+        }
+
+        var request = (new bits.Encoder(Sphinx.command.EXCERPT, Sphinx.clientCommand.EXCERPT));
+
+        // Start of actual request
+        
+        request.push_int32(0); // mode
+
+        var flag = 1;
+
+        if (options.exactPhrase) flag = flag | 2;
+        if (options.singlePassage) flag = flag | 4;
+        if (options.useBoundaries) flag = flag | 8;
+        if (options.weightOrder) flag = flag | 16;
+
+        request.push_int32(parseInt(flag));
+
+        request.push_lstring(index);
+        request.push_lstring(words);
+
+        // options
+
+        request.push_lstring(options.beforeMatch);
+        request.push_lstring(options.afterMatch);
+        request.push_lstring(options.chunkSeparator);
+        request.push_int32(options.limit);
+        request.push_int32(options.around);
+
+        // Documents
+
+        request.push_int32(matches.count);
+
+        for (doc in matches) {
+            request.push_lstring(matches[doc].toString());
+        }
+
+        server_conn.write(request.toString(true), 'binary');
+
+        server_conn.addListener('data', function(data) {
+            // Got response!
+            // Command must match the one used in query
+            var response = getResponse(data, Sphinx.clientCommand.EXCERPT);
+
+            // var answer = parseSearchResponse(response);
+            response = new bits.Decoder(response);
+
+            var answer = [];
+
+            for (doc in matches) {
+                response.shift_int32(); // leading 0
+
+                var excerpt = response.shift_lstring();
+
+                if (excerpt.length > 0) {
+                    answer[matches[doc]] = excerpt; // Excerpt string
+                }
+            }
+
+            callback(null, answer);
+
+        });
+
     }
 
 })();
