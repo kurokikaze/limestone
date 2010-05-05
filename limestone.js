@@ -495,4 +495,5 @@ var Sphinx = {
 
 })();
 
-process.mixin(exports, Sphinx);
+// process.mixin(exports, Sphinx);
+for (var i in Sphinx) { exports[i] = Sphinx[i] };
