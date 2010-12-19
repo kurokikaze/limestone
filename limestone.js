@@ -1,13 +1,14 @@
-var Sphinx = {
-    'port':9312
-};
+var tcp = require('net');
+var sys = require('sys');
 
-(function() {
+exports.SphinxClient = function() {
+    var self = { };
+
     var bits = require('./bits');
-    var tcp = require('net');
-    var sys = require('sys');
 
-    Sphinx.queries = [];
+    var Sphinx = {
+        port : 9312
+    };
 
     // All search modes
     Sphinx.searchMode = {
@@ -89,21 +90,23 @@ var Sphinx = {
 
     var server_conn;
     var connection_status;
-
+    var response_output;
 
     // Connect to Sphinx server
-    Sphinx.connect = function(port, callback) {
+    self.connect = function(port, callback) {
 
         server_conn = tcp.createConnection(port || Sphinx.port);
         // disable Nagle algorithm
         server_conn.setNoDelay(true);
         server_conn.setEncoding('binary');
 
+        response_output = null;
+
         //var promise = new process.Promise();
 
         server_conn.addListener('connect', function () {
 
-            // sys.puts('Connected, sending protocol version... State is ' + server_conn.readyState);
+            //sys.puts('Connected, sending protocol version... State is ' + server_conn.readyState);
             // Sending protocol version
             // sys.puts('Sending version number...');
             // Here we must send 4 bytes, '0x00000001'
@@ -112,11 +115,13 @@ var Sphinx = {
 
                 // Waiting for answer
                 server_conn.addListener('data', function(data) {
-                    // sys.puts('Data received from server');
+                    if (response_output) {
+                        sys.puts('connect: Data received from server');
+                    }
 
                     // var data_unpacked = binary.unpack('N*', data);
                     var receive_listeners = server_conn.listeners('data');
-                    var i;
+                    var i, z;
                     for (i = 0; i < receive_listeners.length; i++) {
                         server_conn.removeListener('data', receive_listeners[i]);
                     }
@@ -126,13 +131,15 @@ var Sphinx = {
                     if (data_unpacked[""] >= 1) {
 
                         // Remove listener after handshaking
-                        var listener;
-                        for (listener in server_conn.listeners('data')) {
-                            server_conn.removeListener('data', listener);
+                        var listeners = server_conn.listeners('data');
+                        for (z = 0; z < listeners.length; z++) {
+                            server_conn.removeListener('data', listeners[z]);
                         }
 
-                        // Simple connection status inducator
+                        // Simple connection status indicator
                         connection_status = 1;
+
+                        server_conn.addListener('data', readResponseData);
 
                         // Use callback
                         // promise.emitSuccess();
@@ -148,14 +155,14 @@ var Sphinx = {
             }
         });
 
-    }
+    };
 
     // sys.puts('Connecting to searchd...');
 
-
-
-    Sphinx.query = function(query_raw, callback) {
+    self.query = function(query_raw, callback) {
         var query;
+
+        initResponseOutput(callback);
 
         var query_parameters = {
             groupmode: Sphinx.groupMode.DAY,
@@ -212,10 +219,10 @@ var Sphinx = {
         }
 
         /* if (connection_status != 1) {
-            sys.puts("You must connect to server before issuing queries");
-            return false;
+         sys.puts("You must connect to server before issuing queries");
+         return false;
 
-        }  */
+         }  */
 
         var request = (new bits.Encoder(Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
@@ -263,51 +270,74 @@ var Sphinx = {
 
         request.push_lstring(query_parameters.selectlist); // Select-list
 
-            server_conn.write(request.toString(), 'binary');
-
-        server_conn.addListener('data', function(data) {
-            // Got response!
-            // Command must match the one used in query
-            var response = getResponse(data, Sphinx.clientCommand.SEARCH);
-
-            var answer = parseSearchResponse(response);
-
-            callback(null, answer);
-
-        });
-
+        server_conn.write(request.toString(), 'binary');
     };
 
-    Sphinx.disconnect = function() {
+    self.disconnect = function() {
         server_conn.end();
+    };
+
+    function readResponseData(data) {
+        // Got response!
+        // Command must match the one used in query
+        response_output.append(data);
     }
 
-    var getResponse = function(data, search_command) {
-        var output = {};
-        var response = new bits.Decoder(data);
+    function initResponseOutput(query_callback) {
+        response_output = {
+            status  : null,
+            version : null,
+            length  : 0,
+            data    : '',
+            parseHeader : function() {
+                if (this.status === null && this.data.length >= 8) {
+                    var decoder = new bits.Decoder(this.data);
 
-        output.status = response.shift_int16();
-        output.version = response.shift_int16();
+                    this.status  = decoder.shift_int16();
+                    this.version = decoder.shift_int16();
+                    this.length  = decoder.shift_int32();
 
-        output.length = response.shift_int32();
+                    this.data = this.data.substring(8);
+                }
+            },
+            append  : function(data) {
+                this.data += data;
+                this.parseHeader();
+                this.runCallbackIfDone();
+            },
+            done : function() {
+                return this.data.length >= this.length;
+            },
+            checkResponse : function(search_command) {
+                var errmsg = '';
+                if (this.length !== this.data.length) {
+                    errmsg += "Failed to read searchd response (status=" + this.status + ", ver=" + this.version + ", len=" + this.length + ", read=" + this.data.length + ")";
+                }
 
-        if (output.length != data.length - 8) {
-            sys.puts("Failed to read searchd response (status=" + output.status + ", ver=" + output.version + ", len=" + output.length + ", read=" + (data.length - 8) + ")");
-        }
+                if (this.version < search_command) {
+                    errmsg += "Searchd command older than client's version, some options might not work";
+                }
 
-        if (output.version < search_command) {
-            sys.puts("Searchd command older than client's version, some options might not work");
-        }
+                if (this.status == Sphinx.statusCode.WARNING) {
+                    errmsg += "Server issued WARNING: " + this.data;
+                }
 
-        if (output.status == Sphinx.statusCode.WARNING) {
-            sys.puts("Server issued WARNING: " + data.substring(8));
-        }
-
-        if (output.status == Sphinx.statusCode.ERROR) {
-            sys.puts("Server issued ERROR: " + data.substring(8));
-        }
-
-        return data.substring(8);
+                if (this.status == Sphinx.statusCode.ERROR) {
+                    errmsg += "Server issued ERROR: " + this.data;
+                }
+                return errmsg;
+            },
+            runCallbackIfDone : function() {
+                if (this.done()) {
+                    var answer;
+                    var errmsg = this.checkResponse(Sphinx.clientCommand.SEARCH);
+                    if (!errmsg) {
+                        answer = parseSearchResponse(response_output.data);
+                    }
+                    query_callback(errmsg, answer);
+                }
+            }
+        };
     }
 
     var parseSearchResponse = function (data) {
@@ -402,7 +432,7 @@ var Sphinx = {
         output.msecs = response.shift_int32();
         output.words_count = response.shift_int32();
         output.words = [];
-        for (i = 0; i <=output.words; i++) {
+        for (i = 0; i <= output.words; i++) {
             output.words.push(response.shift_lstring());
         }
         // sys.puts('Unused data:' + response.length + ' bytes');
@@ -410,90 +440,7 @@ var Sphinx = {
         // @todo: implement words
 
         return output;
-    }
+    };
 
-    Sphinx.buildExcerpts = function (matches, index, words, options, callback) {
-
-        if (typeof words == 'Array') {
-            words = words.join(',');
-        }
-        index = index || "*";
-
-        options = {
-            beforeMatch : options.beforeMatch || '<b>',
-            afterMatch : options.afterMatch || '</b>',
-            chunkSeparator : options.chunkSeparator || '...',
-            limit : options.limit || 256,
-            around : options.around || 5,
-            exactPhrase : options.exactPhrase || false,
-            singlePassage : options.singlePassage || false,
-            useBoundaries : options.useBoundaries || false,
-            weightOrder : options.weightOrder || false
-        }
-
-        var request = (new bits.Encoder(Sphinx.command.EXCERPT, Sphinx.clientCommand.EXCERPT));
-
-        // Start of actual request
-        
-        request.push_int32(0); // mode
-
-        var flag = 1;
-
-        if (options.exactPhrase) flag = flag | 2;
-        if (options.singlePassage) flag = flag | 4;
-        if (options.useBoundaries) flag = flag | 8;
-        if (options.weightOrder) flag = flag | 16;
-
-        request.push_int32(parseInt(flag));
-
-        request.push_lstring(index);
-        request.push_lstring(words);
-
-        // options
-
-        request.push_lstring(options.beforeMatch);
-        request.push_lstring(options.afterMatch);
-        request.push_lstring(options.chunkSeparator);
-        request.push_int32(options.limit);
-        request.push_int32(options.around);
-
-        // Documents
-
-        request.push_int32(matches.count);
-
-        for (doc in matches) {
-            request.push_lstring(matches[doc].toString());
-        }
-
-        server_conn.write(request.toString(true), 'binary');
-
-        server_conn.addListener('data', function(data) {
-            // Got response!
-            // Command must match the one used in query
-            var response = getResponse(data, Sphinx.clientCommand.EXCERPT);
-
-            // var answer = parseSearchResponse(response);
-            response = new bits.Decoder(response);
-
-            var answer = [];
-
-            for (doc in matches) {
-                response.shift_int32(); // leading 0
-
-                var excerpt = response.shift_lstring();
-
-                if (excerpt.length > 0) {
-                    answer[matches[doc]] = excerpt; // Excerpt string
-                }
-            }
-
-            callback(null, answer);
-
-        });
-
-    }
-
-})();
-
-// process.mixin(exports, Sphinx);
-for (var i in Sphinx) { exports[i] = Sphinx[i] };
+    return self;
+};

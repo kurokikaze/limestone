@@ -2,7 +2,7 @@
 
 Usage:
 
-    var limestone = require("./limestone"),
+    var limestone = require("./limestone").SphinxClient(),
         sys = require("sys");
 
     // 9312 is standard Sphinx port
