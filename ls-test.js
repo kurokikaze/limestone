@@ -1,6 +1,6 @@
 var sys = require("sys"),
    http = require("http"),
-   limestone = require("./limestone");
+   limestone = require("./limestone").SphinxClient();
 http.createServer(function (request, response) {
 
   var timed_out = false;
