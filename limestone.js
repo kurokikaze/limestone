@@ -4,7 +4,7 @@ var sys = require('sys');
 exports.SphinxClient = function() {
     var self = { };
 
-    var bits = require('./bits');
+    var buffer_extras = require('./buffer_extras');
 
     var Sphinx = {
         port : 9312
@@ -98,7 +98,7 @@ exports.SphinxClient = function() {
         server_conn = tcp.createConnection(port || Sphinx.port);
         // disable Nagle algorithm
         server_conn.setNoDelay(true);
-        server_conn.setEncoding('binary');
+        //server_conn.setEncoding('binary');
 
         response_output = null;
 
@@ -111,7 +111,9 @@ exports.SphinxClient = function() {
             // sys.puts('Sending version number...');
             // Here we must send 4 bytes, '0x00000001'
             if (server_conn.readyState == 'open') {
-                server_conn.write((new bits.Encoder()).push_int32(1).toRawString(), 'binary');
+				var version_number = Buffer.makeWriter();
+				version_number.push.int32(1);
+                server_conn.write(version_number.toBuffer());
 
                 // Waiting for answer
                 server_conn.addListener('data', function(data) {
@@ -125,7 +127,8 @@ exports.SphinxClient = function() {
                     for (i = 0; i < receive_listeners.length; i++) {
                         server_conn.removeListener('data', receive_listeners[i]);
                     }
-                    var protocol_version = (new bits.Decoder(data)).shift_int32();
+					var protocol_version_raw = data.toReader();
+                    var protocol_version = protocol_version_raw.int32();
                     var data_unpacked = {'': 1};
 
                     if (data_unpacked[""] >= 1) {
@@ -224,53 +227,65 @@ exports.SphinxClient = function() {
 
          }  */
 
-        var request = (new bits.Encoder(Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
+		var request = Buffer.makeWriter(); 
+		request.push.int16(Sphinx.command.SEARCH);
+		request.push.int16(Sphinx.clientCommand.SEARCH);
+		
+		request.push.int32(0);
+		request.push.int32(20);
+		
+		request.push.int32(Sphinx.searchMode.ALL);
+		request.push.int32(Sphinx.rankingMode.BM25);
+		
+		request.push.int32(Sphinx.sortMode.RELEVANCE);
+		
+        //var request = (new bits.Encoder(Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
 
-        request.push_int32(0); // "sort by" is not supported yet
+        request.push.int32(0); // "sort by" is not supported yet
 
-        request.push_lstring(query); // Query text
+        request.push.lstring(query); // Query text
 
-        request.push_int32(query_parameters.weights.length); // weights is not supported yet
+        request.push.int32(query_parameters.weights.length); // weights is not supported yet
         for (var weight in query_parameters.weights) {
-            request.push_int32(parseInt(weight));
+            request.push.int32(parseInt(weight));
         }
 
-        request.push_lstring(query_parameters.indices); // Indices used
+        request.push.lstring(query_parameters.indices); // Indices used
 
-        request.push_int32(1); // id64 range marker
+        request.push.int32(1); // id64 range marker
 
-        request.push_int32(0).push_int32(0).push_int32(0).push_int32(0); // No limits for range
+        request.push.int32(0).push.int32(0).push.int32(0).push.int32(0); // No limits for range
 
-        request.push_int32(0); // filters is not supported yet
+        request.push.int32(0); // filters is not supported yet
 
-        request.push_int32(query_parameters.groupmode);
-        request.push_lstring(query_parameters.groupby); // Groupby length
+        request.push.int32(query_parameters.groupmode);
+        request.push.lstring(query_parameters.groupby); // Groupby length
 
-        request.push_int32(query_parameters.maxmatches); // Maxmatches, default to 1000
+        request.push.int32(query_parameters.maxmatches); // Maxmatches, default to 1000
 
-        request.push_lstring(query_parameters.groupsort); // Groupsort
+        request.push.lstring(query_parameters.groupsort); // Groupsort
 
-        request.push_int32(0); // Cutoff
-        request.push_int32(0); // Retrycount
-        request.push_int32(0); // Retrydelay
+        request.push.int32(0); // Cutoff
+        request.push.int32(0); // Retrycount
+        request.push.int32(0); // Retrydelay
 
-        request.push_lstring(query_parameters.groupdistinct); // Group distinct
+        request.push.lstring(query_parameters.groupdistinct); // Group distinct
 
-        request.push_int32(0); // anchor is not supported yet
+        request.push.int32(0); // anchor is not supported yet
 
-        request.push_int32(0); // Per-index weights is not supported yet
+        request.push.int32(0); // Per-index weights is not supported yet
 
-        request.push_int32(0); // Max query time is set to 0
+        request.push.int32(0); // Max query time is set to 0
 
-        request.push_int32(0); // Per-field weights is not supported yet
+        request.push.int32(0); // Per-field weights is not supported yet
 
-        request.push_lstring(query_parameters.comment); // Comments is not supported yet
+        request.push.lstring(query_parameters.comment); // Comments is not supported yet
 
-        request.push_int32(0); // Atribute overrides is not supported yet
+        request.push.int32(0); // Atribute overrides is not supported yet
 
-        request.push_lstring(query_parameters.selectlist); // Select-list
+        request.push.lstring(query_parameters.selectlist); // Select-list
 
-        server_conn.write(request.toString(), 'binary');
+        server_conn.write(request.toBuffer());
     };
 
     self.disconnect = function() {
@@ -291,13 +306,15 @@ exports.SphinxClient = function() {
             data    : '',
             parseHeader : function() {
                 if (this.status === null && this.data.length >= 8) {
-                    var decoder = new bits.Decoder(this.data);
+					var decoder = this.data.toReader();
+                    // var decoder = new bits.Decoder(this.data);
 
-                    this.status  = decoder.shift_int16();
-                    this.version = decoder.shift_int16();
-                    this.length  = decoder.shift_int32();
+                    this.status  = decoder.int16();
+                    this.version = decoder.int16();
+                    this.length  = decoder.int32();
 
-                    this.data = this.data.substring(8);
+					this.data = this.data.substring(8);
+                    // this.data = decoder.string(this.data.length - 8);
                 }
             },
             append  : function(data) {
@@ -342,11 +359,12 @@ exports.SphinxClient = function() {
 
     var parseSearchResponse = function (data) {
         var output = {};
-        var response = new bits.Decoder(data);
+        // var response = new bits.Decoder(data);
+        var response = data.toReader();
         var i;
 
-        output.status = response.shift_int32();
-        output.num_fields = response.shift_int32();
+        output.status = response.int32();
+        output.num_fields = response.int32();
 
         output.fields = [];
         output.attributes = [];
@@ -356,25 +374,25 @@ exports.SphinxClient = function() {
         for (i = 0; i < output.num_fields; i++) {
             var field = {};
 
-            field.name = response.shift_lstring();
+            field.name = response.lstring();
 
             output.fields.push(field);
         }
 
-        output.num_attrs = response.shift_int32();
+        output.num_attrs = response.int32();
 
         // Get attributes
         for (i = 0; i < output.num_attrs; i++) {
             var attribute = {};
 
-            attribute.name = response.shift_lstring();
-            attribute.type = response.shift_int32();
+            attribute.name = response.lstring();
+            attribute.type = response.int32();
 
             output.attributes.push(attribute);
         }
 
-        output.match_count = response.shift_int32();
-        output.id64 = response.shift_int32();
+        output.match_count = response.int32();
+        output.id64 = response.int32();
 
         // Get matches
         for (i = 0; i < output.match_count; i++) {
@@ -385,13 +403,13 @@ exports.SphinxClient = function() {
             if (output.id64 == 1) {
                 // here we must fetch int64 document id
                 // and immediately throw half of it away :)
-                var id64 = response.shift_int32();
-                match.doc = response.shift_int32();
-                match.weight = response.shift_int32();
+                var id64 = response.int32();
+                match.doc = response.int32();
+                match.weight = response.int32();
             } else {
                 // Good news: document id fits our integers size :)
-                match.doc = response.shift_int32();
-                match.weight = response.shift_int32();
+                match.doc = response.int32();
+                match.weight = response.int32();
             }
 
             match.attrs = {};
@@ -403,15 +421,15 @@ exports.SphinxClient = function() {
             for (attribute in output.attributes) {
                 // BIGINT size attributes (64 bits)
                 if (attribute.type == Sphinx.attribute.BIGINT) {
-                    attr_value = response.shift_int32();
-                    attr_value = response.shift_int32();
+                    attr_value = response.int32();
+                    attr_value = response.int32();
                     match.attrs[output.attributes[attribute].name] = attr_value;
                     continue;
                 }
 
                 // FLOAT size attributes (32 bits)
                 if (output.attributes[attribute].type == Sphinx.attribute.FLOAT) {
-                    attr = response.shift_int32();
+                    attr = response.int32();
                     match.attrs[output.attributes[attribute].name] = attr_value;
                     continue;
                 }
@@ -419,7 +437,7 @@ exports.SphinxClient = function() {
                 // We don't need this branch right now,
                 // as it is covered by previous `if`
                 // @todo: implement MULTI attribute type
-                attr_value = response.shift_int32();
+                attr_value = response.int32();
                 match.attrs[output.attributes[attribute].name] = attr_value;
             }
 
@@ -427,13 +445,13 @@ exports.SphinxClient = function() {
 
         }
 
-        output.total = response.shift_int32();
-        output.total_found = response.shift_int32();
-        output.msecs = response.shift_int32();
-        output.words_count = response.shift_int32();
+        output.total = response.int32();
+        output.total_found = response.int32();
+        output.msecs = response.int32();
+        output.words_count = response.int32();
         output.words = [];
         for (i = 0; i <= output.words; i++) {
-            output.words.push(response.shift_lstring());
+            output.words.push(response.lstring());
         }
         // sys.puts('Unused data:' + response.length + ' bytes');
 
