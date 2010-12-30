@@ -116,7 +116,7 @@ exports.SphinxClient = function() {
                 server_conn.write(version_number.toBuffer());
 
                 // Waiting for answer
-                server_conn.addListener('data', function(data) {
+                server_conn.on('data', function(data) {
                     if (response_output) {
                         sys.puts('connect: Data received from server');
                     }
@@ -129,7 +129,9 @@ exports.SphinxClient = function() {
                     }
 					var protocol_version_raw = data.toReader();
                     var protocol_version = protocol_version_raw.int32();
-                    var data_unpacked = {'': 1};
+                    var data_unpacked = {'': protocol_version};
+
+                    console.log('Protocol version: ' + protocol_version);
 
                     if (data_unpacked[""] >= 1) {
 
@@ -152,6 +154,9 @@ exports.SphinxClient = function() {
                         callback(new Error('Wrong protocol version: ' + protocol_version));
                     }
 
+                });
+                server_conn.on('error', function(exp) {
+                    console.log('Error: ' + exp);
                 });
             } else {
                 callback(new Error('Connection is ' + server_conn.readyState + ' in OnConnect'));
@@ -231,6 +236,8 @@ exports.SphinxClient = function() {
 		request.push.int16(Sphinx.command.SEARCH);
 		request.push.int16(Sphinx.clientCommand.SEARCH);
 		
+        request.push.int32(0); // Whis will be request length
+        request.push.int32(1);
 		request.push.int32(0);
 		request.push.int32(20);
 		
@@ -254,7 +261,10 @@ exports.SphinxClient = function() {
 
         request.push.int32(1); // id64 range marker
 
-        request.push.int32(0).push.int32(0).push.int32(0).push.int32(0); // No limits for range
+        request.push.int32(0);
+        request.push.int32(0); // This is actually two 64-bit numbers
+        request.push.int32(0);
+        request.push.int32(0); // No limits for range
 
         request.push.int32(0); // filters is not supported yet
 
@@ -285,7 +295,13 @@ exports.SphinxClient = function() {
 
         request.push.lstring(query_parameters.selectlist); // Select-list
 
-        server_conn.write(request.toBuffer());
+        var request_buf = request.toBuffer();
+        var req_length = Buffer.makeWriter();
+        req_length.push.int32(request_buf.length - 8);
+        req_length.toBuffer().copy(request_buf, 4, 0);
+
+        // console.log('Sending request of ' + request_buf.length + ' bytes');
+        server_conn.write(request_buf);
     };
 
     self.disconnect = function() {
@@ -303,9 +319,10 @@ exports.SphinxClient = function() {
             status  : null,
             version : null,
             length  : 0,
-            data    : '',
+            data    : new Buffer(255),
             parseHeader : function() {
                 if (this.status === null && this.data.length >= 8) {
+                    console.log('Length: ' + (this.data.length));
 					var decoder = this.data.toReader();
                     // var decoder = new bits.Decoder(this.data);
 
@@ -313,12 +330,16 @@ exports.SphinxClient = function() {
                     this.version = decoder.int16();
                     this.length  = decoder.int32();
 
-					this.data = this.data.substring(8);
+					this.data = this.data.slice(8, this.data.length);
                     // this.data = decoder.string(this.data.length - 8);
                 }
             },
             append  : function(data) {
-                this.data += data;
+                //this.data.write(data.toString('utf-8'), 'utf-8');
+                var new_buffer = new Buffer(this.data.length + data.length);
+                this.data.copy(new_buffer, 0, 0);
+                data.copy(new_buffer, this.data.length, 0);
+                this.data = new_buffer;
                 this.parseHeader();
                 this.runCallbackIfDone();
             },
