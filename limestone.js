@@ -117,9 +117,9 @@ exports.SphinxClient = function() {
 
                 // Waiting for answer
                 server_conn.on('data', function(data) {
-                    if (response_output) {
+                    /*if (response_output) {
                         sys.puts('connect: Data received from server');
-                    }
+                    }*/
 
                     // var data_unpacked = binary.unpack('N*', data);
                     var receive_listeners = server_conn.listeners('data');
@@ -131,7 +131,7 @@ exports.SphinxClient = function() {
                     var protocol_version = protocol_version_raw.int32();
                     var data_unpacked = {'': protocol_version};
 
-                    console.log('Protocol version: ' + protocol_version);
+                    //  console.log('Protocol version: ' + protocol_version);
 
                     if (data_unpacked[""] >= 1) {
 
@@ -144,7 +144,7 @@ exports.SphinxClient = function() {
                         // Simple connection status indicator
                         connection_status = 1;
 
-                        server_conn.addListener('data', readResponseData);
+                        server_conn.on('data', readResponseData);
 
                         // Use callback
                         // promise.emitSuccess();
@@ -319,16 +319,17 @@ exports.SphinxClient = function() {
             status  : null,
             version : null,
             length  : 0,
-            data    : new Buffer(255),
+            data    : new Buffer(0),
             parseHeader : function() {
                 if (this.status === null && this.data.length >= 8) {
-                    console.log('Length: ' + (this.data.length));
+                    // console.log('Answer length: ' + (this.data.length));
 					var decoder = this.data.toReader();
                     // var decoder = new bits.Decoder(this.data);
 
                     this.status  = decoder.int16();
                     this.version = decoder.int16();
                     this.length  = decoder.int32();
+                    // console.log('Receiving answer with status ' + this.status + ', version ' + this.version + ' and length ' + this.length);
 
 					this.data = this.data.slice(8, this.data.length);
                     // this.data = decoder.string(this.data.length - 8);
@@ -336,14 +337,17 @@ exports.SphinxClient = function() {
             },
             append  : function(data) {
                 //this.data.write(data.toString('utf-8'), 'utf-8');
+                // sys.puts('Appending ' + data.length + ' bytes');
                 var new_buffer = new Buffer(this.data.length + data.length);
                 this.data.copy(new_buffer, 0, 0);
                 data.copy(new_buffer, this.data.length, 0);
                 this.data = new_buffer;
+                // console.log('Data length after appending: ' + this.data.length);
                 this.parseHeader();
                 this.runCallbackIfDone();
             },
             done : function() {
+                // console.log('Length: ' + this.data.length + ' / ' + this.length);
                 return this.data.length >= this.length;
             },
             checkResponse : function(search_command) {
