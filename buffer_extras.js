@@ -55,6 +55,18 @@ proto.int32Read = function int32Read(offset) {
          this[offset + 3];
 };
 
+proto.int64Read = function int64Read(offset) {
+  offset = offset || 0;
+  return (this[offset] << 512) +
+         (this[offset + 1] << 256) +
+         (this[offset + 2] << 128) +
+         (this[offset + 3] << 64) +
+         (this[offset + 4] << 32) +
+         (this[offset + 5] << 16) +
+         (this[offset + 6] << 8) +
+         this[offset + 7];
+};
+
 // Reads a 32 bit integer from offset
 proto.int16Read = function int16Read(offset) {
   offset = offset || 0;
@@ -136,6 +148,11 @@ proto.toReader = function toReader() {
   return {
     empty: function empty() {
       return offset >= length;
+    },
+    int64: function shiftInt64() {
+      var number = buffer.int64Read(offset);
+      offset += 8;
+      return number;
     },
     int32: function shiftInt32() {
       var number = buffer.int32Read(offset);
