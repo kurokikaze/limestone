@@ -1,7 +1,7 @@
 {
     "name":"Limestone",
     "description":"Sphinx search server connector for Node.js",
-    "version":"v0.0.1",
+    "version":"v0.1",
     "keywords":"sphinx, search, searchd, text",
     "maintainers":[{
        "name": "Serge Shirokov",
