@@ -1,5 +1,5 @@
 {
-    "name":"Limestone",
+    "name":"limestone",
     "description":"Sphinx search server connector for Node.js",
     "version":"v0.1.1",
     "keywords":"sphinx, search, searchd, text",
