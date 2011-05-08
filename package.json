@@ -11,7 +11,7 @@
     "bugs":"http://github.com/kurokikaze/limestone/issues",
     "licenses": [{
        "type": "Creative Commons - Attribution 3.0",
-       "url": "http://creativecommons.org/licenses/by/3.0/",
+       "url": "http://creativecommons.org/licenses/by/3.0/"
     }],
     "repositories": [{
         "type": "git",
