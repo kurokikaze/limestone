@@ -85,6 +85,7 @@ exports.SphinxClient = function() {
         "BOOL":           4,
         "FLOAT":          5,
         "BIGINT":         6,
+        "STRING":         7,
         "MULTI":          1073741824 // 0x40000000
     };
 
@@ -455,6 +456,13 @@ exports.SphinxClient = function() {
                 // FLOAT size attributes (32 bits)
                 if (output.attributes[attribute].type == Sphinx.attribute.FLOAT) {
                     attr_value = response.int32();
+                    match.attrs[output.attributes[attribute].name] = attr_value;
+                    continue;
+                }
+
+                // STRING attributes
+                if (output.attributes[attribute].type == Sphinx.attribute.STRING) {
+                    attr_value = response.lstring();
                     match.attrs[output.attributes[attribute].name] = attr_value;
                     continue;
                 }
