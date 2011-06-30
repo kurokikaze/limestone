@@ -85,6 +85,7 @@ exports.SphinxClient = function() {
         "BOOL":           4,
         "FLOAT":          5,
         "BIGINT":         6,
+        "STRING":         7,
         "MULTI":          1073741824 // 0x40000000
     };
 
@@ -389,6 +390,10 @@ exports.SphinxClient = function() {
         var i;
 
         output.status = response.int32();
+	if (output.status != 0) {
+		sys.puts("Status =" + output.status);
+		return(response.lstring());
+	}
         output.num_fields = response.int32();
 
         output.fields = [];
@@ -412,7 +417,6 @@ exports.SphinxClient = function() {
 
             attribute.name = response.lstring();
             attribute.type = response.int32();
-
             output.attributes.push(attribute);
         }
 
@@ -442,10 +446,10 @@ exports.SphinxClient = function() {
             //
             var attr_value;
             // var attribute;
-
+sys.puts(sys.inspect(output.attributes));
             for (attribute in output.attributes) {
                 // BIGINT size attributes (64 bits)
-                if (attribute.type == Sphinx.attribute.BIGINT) {
+                if (output.attributes[attribute].type == Sphinx.attribute.BIGINT) {
                     attr_value = response.int32();
                     attr_value = response.int32();
                     match.attrs[output.attributes[attribute].name] = attr_value;
@@ -459,9 +463,18 @@ exports.SphinxClient = function() {
                     continue;
                 }
 
+                // STRING attributes
+                if (output.attributes[attribute].type == Sphinx.attribute.STRING) {
+                    attr_value = response.lstring();
+                    sys.puts(output.attributes[attribute].name + " [" + attr_value + "]");
+                    match.attrs[output.attributes[attribute].name] = attr_value;
+                    continue;
+                }
+
                 // We don't need this branch right now,
                 // as it is covered by previous `if`
                 // @todo: implement MULTI attribute type
+                sys.puts("NO WAY");
                 attr_value = response.int32();
                 match.attrs[output.attributes[attribute].name] = attr_value;
             }
