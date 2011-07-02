@@ -23,52 +23,56 @@ exports.SphinxClient = function() {
 
     // All ranking modes
     Sphinx.rankingMode = {
-        "PROXIMITY_BM25": 0,    ///< default mode, phrase proximity major factor and BM25 minor one
-        "BM25": 1,    ///< statistical mode, BM25 ranking only (faster but worse quality)
-        "NONE": 2,    ///< no ranking, all matches get a weight of 1
-        "WORDCOUNT":3,    ///< simple word-count weighting, rank is a weighted sum of per-field keyword occurence counts
-        "PROXIMITY":4,
-        "MATCHANY" :5,
-        "FIELDMASK":6
+        "PROXIMITY_BM25"	: 0,    ///< default mode, phrase proximity major factor and BM25 minor one
+        "BM25"				: 1,    ///< statistical mode, BM25 ranking only (faster but worse quality)
+        "NONE"				: 2,    ///< no ranking, all matches get a weight of 1
+        "WORDCOUNT"			: 3,    ///< simple word-count weighting, rank is a weighted sum of per-field keyword occurence counts
+        "PROXIMITY"			: 4,
+        "MATCHANY"			: 5,
+        "FIELDMASK"			: 6,
+        "SPH04"				: 7,
+        "TOTAL"				: 8
     };
 
     Sphinx.sortMode = {
-        "RELEVANCE": 0,
-        "ATTR_DESC": 1,
-        "ATTR_ASC": 2,
-        "TIME_SEGMENTS": 3,
-        "EXTENDED": 4,
-        "EXPR": 5
+        "RELEVANCE"		: 0,
+        "ATTR_DESC"		: 1,
+        "ATTR_ASC"		: 2,
+        "TIME_SEGMENTS"	: 3,
+        "EXTENDED"		: 4,
+        "EXPR"			: 5
     };
 
-    Sphinx.groupMode = {
-        "DAY": 0,
-        "WEEK": 1,
-        "MONTH": 2,
-        "YEAR": 3,
-        "ATTR": 4,
-        "ATTRPAIR": 5
+    Sphinx.groupFunc = {
+        "DAY"		: 0,
+        "WEEK"		: 1,
+        "MONTH"		: 2,
+        "YEAR"		: 3,
+        "ATTR"		: 4,
+        "ATTRPAIR"	: 5
     };
 
     // Commands
     Sphinx.command = {
-        "SEARCH"  : 0,
-        "EXCERPT" : 1,
-        "UPDATE"  : 2,
-        "KEYWORDS": 3,
-        "PERSIST" : 4,
-        "STATUS"  : 5,
-        "QUERY"   : 6
+        "SEARCH"  		: 0,
+        "EXCERPT" 		: 1,
+        "UPDATE"  		: 2,
+        "KEYWORDS"		: 3,
+        "PERSIST" 		: 4,
+        "STATUS"  		: 5,
+        "QUERY"   		: 6,
+        "FLUSHATTRS"	: 7
     };
 
     // Current version client commands
     Sphinx.clientCommand = {
-        "SEARCH": 278,
-        "EXCERPT": 256,
-        "UPDATE": 258,
-        "KEYWORDS": 256,
-        "STATUS": 256,
-        "QUERY": 256
+        "SEARCH"	: 0x118,
+        "EXCERPT"	: 0x103,
+        "UPDATE"	: 0x102,
+        "KEYWORDS"	: 0x100,
+        "STATUS"	: 0x100,
+        "QUERY"		: 0x100,
+        "FLUSHATTRS": 0x100
     };
 
     Sphinx.statusCode = {
@@ -76,6 +80,12 @@ exports.SphinxClient = function() {
         "ERROR":   1,
         "RETRY":   2,
         "WARNING": 3
+    };
+
+    Sphinx.filterTypes = {
+    	"VALUES"		: 0,
+    	"RANGE"			: 1,
+    	"FLOATRANGE"	: 2
     };
 
     Sphinx.attribute = {
@@ -86,7 +96,7 @@ exports.SphinxClient = function() {
         "FLOAT":          5,
         "BIGINT":         6,
         "STRING":         7,
-        "MULTI":          1073741824 // 0x40000000
+        "MULTI":          0x40000000 
     };
 
     var server_conn;
@@ -174,55 +184,59 @@ exports.SphinxClient = function() {
         initResponseOutput(callback);
 
         var query_parameters = {
-            groupmode: Sphinx.groupMode.DAY,
+            groupFunc: Sphinx.groupFunc.DAY,
             groupsort: "@group desc",
             groupdistinct: "",
-            indices: '*',
             groupby: '',
             maxmatches: 1000,
             selectlist: '*',
             weights: [],
-            comment: ''
+            	
+			offset				: 0,
+			limit				: 20,
+			mode				: Sphinx.searchMode.ALL,
+			_weights			: [],
+			sort				: Sphinx.sortMode.RELEVANCE,
+			sortby				: "",
+			min_id				: 0,
+			max_id				: 0,
+			filters				: [],
+			groupby				: "",
+			groupfunc			: Sphinx.groupFunc.DAY,
+			groupsort			: "@group desc",
+			groupdistinct		: "",
+			maxmatches			: 1000,
+			cutoff				: 0,
+			retrycount			: 0,
+			retrydelay			: 0,
+			anchor				: [],
+			indexweights		: [],
+			ranker				: Sphinx.rankingMode.PROXIMITY_BM25,
+			maxquerytime		: 0,
+			weights				: [],
+			overrides 			: [],
+			selectlist			: "*",
+            indexes				: '*',
+            comment				: '',
+	
+			error				: "", // per-reply fields (for single-query case)
+			warning				: "",
+			connerror			: false,
+	
+			reqs				: [],	// requests storage (for multi-query case)
+			mbenc				: "",
+			arrayresult			: false,
+			timeout				: 0
         };
 
-        if (query_raw.groupmode) {
-            query_parameters.groupmode = query_raw.groupmode;
-        }
-
-        if (query_raw.groupby) {
-            query_parameters.groupby = query_raw.groupby;
-        }
-
-        if (query_raw.groupsort) {
-            query_parameters.groupsort = query_raw.groupsort;
-        }
-
-        if (query_raw.groupdistinct) {
-            query_parameters.groupdistinct = query_raw.groupdistinct;
-        }
-
-        if (query_raw.indices) {
-            query_parameters.indices = query_raw.indices;
-        }
-
-        if (query_raw.maxmatches) {
-            query_parameters.maxmatches = query_raw.maxmatches;
-        }
-
-        if (query_raw.selectlist) {
-            query_parameters.selectlist = query_raw.selectlist;
-        }
-
-        if (query_raw.weights) {
-            query_parameters.weights = query_raw.weights;
-        }
-
-        if (query_raw.comment) {
-            query_parameters.comment = query_raw.comment;
-        }
-
         if (query_raw.query) {
-            query = query_raw.query;
+            for (x in query_parameters) {
+            	if (query_raw.hasOwnProperty(x)) {
+                    query[x] = query_raw[query];            		
+            	} else {
+                    query[x] = query_parameters[query];            		            		
+            	}
+            }
         } else {
             query = query_raw.toString();
         }
@@ -269,7 +283,7 @@ exports.SphinxClient = function() {
 
         request.push.int32(0); // filters is not supported yet
 
-        request.push.int32(query_parameters.groupmode);
+        request.push.int32(query_parameters.groupfunc);
         request.push.lstring(query_parameters.groupby); // Groupby length
 
         request.push.int32(query_parameters.maxmatches); // Maxmatches, default to 1000
