@@ -60,16 +60,9 @@ exports.SphinxClient = function() {
         "STATUS"  : 5,
         "QUERY"   : 6
     };
-
-    // Current version client commands
-    Sphinx.clientCommand = {
-        "SEARCH": 278,
-        "EXCERPT": 256,
-        "UPDATE": 258,
-        "KEYWORDS": 256,
-        "STATUS": 256,
-        "QUERY": 256
-    };
+    
+    // Current search API version
+    Sphinx.clientVersion = 0x118;
 
     Sphinx.statusCode = {
         "OK":      0,
@@ -85,6 +78,7 @@ exports.SphinxClient = function() {
         "BOOL":           4,
         "FLOAT":          5,
         "BIGINT":         6,
+        "STRING":         7,
         "MULTI":          1073741824 // 0x40000000
     };
 
@@ -232,76 +226,80 @@ exports.SphinxClient = function() {
 
          }  */
 
-		var request = Buffer.makeWriter(); 
-		request.push.int16(Sphinx.command.SEARCH);
-		request.push.int16(Sphinx.clientCommand.SEARCH);
+		  var request = Buffer.makeWriter(); 
+
+      //Request header
+      request.push.int16(Sphinx.command.SEARCH);
+	  request.push.int16(Sphinx.clientVersion);
 		
-        request.push.int32(0); // Whis will be request length
-        request.push.int32(1);
-		request.push.int32(0);
-		request.push.int32(20);
-		
-		request.push.int32(Sphinx.searchMode.ALL);
-		request.push.int32(Sphinx.rankingMode.BM25);
-		
-		request.push.int32(Sphinx.sortMode.RELEVANCE);
-		
-        //var request = (new bits.Encoder(Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
+      request.push.int32(0); // This will be request length
+      request.push.int32(0); // Its a client
+	  request.push.int32(1); // Number of requests
+		  
+      //Request body
+      request.push.int32(0); // request offst
+	  request.push.int32(100); // request limit
+      
+	  request.push.int32(Sphinx.searchMode.ALL);  // search mode
+	  request.push.int32(Sphinx.rankingMode.BM25); // ranking mode		
+	  request.push.int32(Sphinx.sortMode.RELEVANCE); // sort mode
+  	  request.push.lstring(""); // "sort by" value
 
-        request.push.int32(0); // "sort by" is not supported yet
+      request.push.lstring(query); // Query text
 
-        request.push.lstring(query); // Query text
+      request.push.int32(query_parameters.weights.length); // weights is not supported yet
+      for (var weight in query_parameters.weights) {
+          request.push.int32(parseInt(weight));
+      }
 
-        request.push.int32(query_parameters.weights.length); // weights is not supported yet
-        for (var weight in query_parameters.weights) {
-            request.push.int32(parseInt(weight));
-        }
+      request.push.lstring(query_parameters.indices); // Indices used
 
-        request.push.lstring(query_parameters.indices); // Indices used
+      request.push.int32(1); // id64 range marker
 
-        request.push.int32(1); // id64 range marker
+      // first 8 bytes is a minid 64bit value
+      request.push.int32(0);
+      request.push.int32(0); 
+      // second 8 bytes is a maxid 64bit value
+      request.push.int32(0);
+      request.push.int32(0); // No limits for range
 
-        request.push.int32(0);
-        request.push.int32(0); // This is actually two 64-bit numbers
-        request.push.int32(0);
-        request.push.int32(0); // No limits for range
+      // filters are not supported yet
+      request.push.int32(0); // number of filters
 
-        request.push.int32(0); // filters is not supported yet
+      request.push.int32(query_parameters.groupmode); // "group by" mode
+      request.push.lstring(query_parameters.groupby); // "group by" value
 
-        request.push.int32(query_parameters.groupmode);
-        request.push.lstring(query_parameters.groupby); // Groupby length
+      request.push.int32(query_parameters.maxmatches); // Maxmatches, default to 1000
 
-        request.push.int32(query_parameters.maxmatches); // Maxmatches, default to 1000
+      request.push.lstring(query_parameters.groupsort); // Groupsort
 
-        request.push.lstring(query_parameters.groupsort); // Groupsort
+      request.push.int32(0); // Cutoff
+      request.push.int32(0); // Retry count
+      request.push.int32(0); // Retry delay
 
-        request.push.int32(0); // Cutoff
-        request.push.int32(0); // Retrycount
-        request.push.int32(0); // Retrydelay
+      request.push.lstring(query_parameters.groupdistinct); // Group distinct
 
-        request.push.lstring(query_parameters.groupdistinct); // Group distinct
+      request.push.int32(0); // anchor is not supported yet
 
-        request.push.int32(0); // anchor is not supported yet
+      request.push.int32(0); // Per-index weights is not supported yet
 
-        request.push.int32(0); // Per-index weights is not supported yet
+      request.push.int32(0); // Max query time is set to 0
 
-        request.push.int32(0); // Max query time is set to 0
+		  request.push.lstring(""); // num field weights (not supported)
 
-        request.push.int32(0); // Per-field weights is not supported yet
+      request.push.lstring(query_parameters.comment); // Comments is not supported yet
 
-        request.push.lstring(query_parameters.comment); // Comments is not supported yet
+      request.push.int32(0); // Atribute overrides is not supported yet
 
-        request.push.int32(0); // Atribute overrides is not supported yet
+      request.push.lstring(query_parameters.selectlist); // Select-list
 
-        request.push.lstring(query_parameters.selectlist); // Select-list
+      var request_buf = request.toBuffer();
+      var req_length = Buffer.makeWriter();
+      req_length.push.int32(request_buf.length - 8);
+      req_length.toBuffer().copy(request_buf, 4, 0);
 
-        var request_buf = request.toBuffer();
-        var req_length = Buffer.makeWriter();
-        req_length.push.int32(request_buf.length - 8);
-        req_length.toBuffer().copy(request_buf, 4, 0);
-
-        // console.log('Sending request of ' + request_buf.length + ' bytes');
-        server_conn.write(request_buf);
+      // console.log('Sending request of ' + request_buf.length + ' bytes');
+      server_conn.write(request_buf);
     };
 
     self.disconnect = function() {
@@ -372,7 +370,7 @@ exports.SphinxClient = function() {
             runCallbackIfDone : function() {
                 if (this.done()) {
                     var answer;
-                    var errmsg = this.checkResponse(Sphinx.clientCommand.SEARCH);
+                    var errmsg = this.checkResponse(Sphinx.clientVersion);
                     if (!errmsg) {
                         answer = parseSearchResponse(response_output.data);
                     }
@@ -455,6 +453,13 @@ exports.SphinxClient = function() {
                 // FLOAT size attributes (32 bits)
                 if (output.attributes[attribute].type == Sphinx.attribute.FLOAT) {
                     attr_value = response.int32();
+                    match.attrs[output.attributes[attribute].name] = attr_value;
+                    continue;
+                }
+
+                // STRING attributes
+                if (output.attributes[attribute].type == Sphinx.attribute.STRING) {
+                    attr_value = response.lstring();
                     match.attrs[output.attributes[attribute].name] = attr_value;
                     continue;
                 }
