@@ -195,7 +195,7 @@ exports.SphinxClient = function() {
 			offset				: 0,
 			limit				: 20,
 			mode				: Sphinx.searchMode.ALL,
-			_weights			: [],
+			weights				: [],
 			sort				: Sphinx.sortMode.RELEVANCE,
 			sortby				: "",
 			min_id				: 0,
@@ -251,38 +251,60 @@ exports.SphinxClient = function() {
 		request.push.int16(Sphinx.command.SEARCH);
 		request.push.int16(Sphinx.clientCommand.SEARCH);
 		
-        request.push.int32(0); // Whis will be request length
-        request.push.int32(1);
-		request.push.int32(0);
-		request.push.int32(20);
+        //request.push.int32(0); // This will be request length
+        request.push.int64(0,1);
+		//request.push.int32(0);
+		request.push.int64(0,20);
 		
-		request.push.int32(Sphinx.searchMode.ALL);
-		request.push.int32(Sphinx.rankingMode.BM25);
+		request.push.int32(query.mode);
+		request.push.int32(query.ranker);
 		
-		request.push.int32(Sphinx.sortMode.RELEVANCE);
+		request.push.int32(query.sort);
 		
-        //var request = (new bits.Encoder(Sphinx.command.SEARCH, Sphinx.clientCommand.SEARCH)).push_int32(0).push_int32(20).push_int32(Sphinx.searchMode.ALL).push_int32(Sphinx.rankingMode.BM25).push_int32(Sphinx.sortMode.RELEVANCE);
-
-        request.push.int32(0); // "sort by" is not supported yet
+        request.push.lstring(query.sortby); 
 
         request.push.lstring(query); // Query text
 
-        request.push.int32(query_parameters.weights.length); // weights is not supported yet
-        for (var weight in query_parameters.weights) {
+        request.push.int32(query.weights.length); 
+        for (var weight in query.weights) {
             request.push.int32(parseInt(weight));
         }
 
-        request.push.lstring(query_parameters.indices); // Indices used
+        request.push.lstring(query_parameters.indexes); // Indexes used
 
         request.push.int32(1); // id64 range marker
 
-        request.push.int32(0);
-        request.push.int32(0); // This is actually two 64-bit numbers
-        request.push.int32(0);
-        request.push.int32(0); // No limits for range
+        //request.push.int32(0);
+        request.push.int64(0, query.min_id); // This is actually supposed to be two 64-bit numbers
+        //request.push.int32(0);				//  However, there is a caveat about using 64-bit ids
+        request.push.int64(0, query.max_id); 
 
-        request.push.int32(0); // filters is not supported yet
-
+        request.push.int32(query.filters.length); 
+        for (var filter in query.filters) {
+            request.push.int32(filter.attr.length);
+            request.push_lstring(filter.attr);
+            request.push.int32(filter.type);
+            switch (filter.type) {
+            	case Sphinx.filterTypes.VALUES:
+            		request.push.int32(filter.values.length);
+            		for (var value in filter.values) {
+                		//request.push.int32(0);		// should be a 64-bit number
+                		request.push.int64(0, value);
+            		}
+            		break;
+            	case Sphinx.filterTypes.RANGE:
+            		//request.push.int32(0);		// should be a 64-bit number
+            		request.push.int64(0, filter.min);
+            		//request.push.int32(0);		// should be a 64-bit number
+            		request.push.int64(0, filter.max);
+            		break;
+            	case Sphinx.filterTypes.FLOATRANGE:
+            		request.push.float(filter.min);
+            		request.push.float(filter.max);
+            		break;
+            }
+        }
+        
         request.push.int32(query_parameters.groupfunc);
         request.push.lstring(query_parameters.groupby); // Groupby length
 
@@ -290,23 +312,58 @@ exports.SphinxClient = function() {
 
         request.push.lstring(query_parameters.groupsort); // Groupsort
 
-        request.push.int32(0); // Cutoff
-        request.push.int32(0); // Retrycount
-        request.push.int32(0); // Retrydelay
+        request.push.int32(query_parameters.cutoff); // Cutoff
+        request.push.int32(query_parameters.retrycount); // Retrycount
+        request.push.int32(query_parameters.retrydelay); // Retrydelay
 
         request.push.lstring(query_parameters.groupdistinct); // Group distinct
 
-        request.push.int32(0); // anchor is not supported yet
+        if (query_parameters.anchor.length == 0) {
+            request.push.int32(0); // no anchor given
+        } else {
+            request.push.int32(1); // anchor point in radians
+            request.push.lstring(query_parameters.anchor["attrlat"]); // Group distinct
+            request.push.lstring(query_parameters.anchor["attrlong"]); // Group distinct
+    		request.push.float(query_parameters.anchor["lat"]);
+    		request.push.float(query_parameters.anchor["long"]);
+        }
 
-        request.push.int32(0); // Per-index weights is not supported yet
+        request.push.int32(query_parameters.indexweights.length);
+        for (var i in query_parameters.indexweights) {
+            request.push.int32(i);
+            request.push.int32(query_parameters.indexweights[i]);
+        }
 
-        request.push.int32(0); // Max query time is set to 0
+        request.push.int32(query_parameters.maxquerytime); 
 
-        request.push.int32(0); // Per-field weights is not supported yet
+        request.push.int32(query_parameters.weights.length);
+        for (var i in query_parameters.weights) {
+            request.push.int32(i);
+            request.push.int32(query_parameters.weights[i]);
+        }
 
-        request.push.lstring(query_parameters.comment); // Comments is not supported yet
+        request.push.lstring(query_parameters.comment); 
 
-        request.push.int32(0); // Atribute overrides is not supported yet
+        request.push.int32(query_parameters.overrides.length);
+        for (var i in query_parameters.overrides) {
+            request.push.lstring(query_parameters.overrides[i].attr); 
+            request.push.int32(query_parameters.overrides[i].type);
+            request.push.int32(query_parameters.overrides[i].values.length);
+            for (var id in query_parameters.overrides[i].values) {
+                request.push.int64(id);
+                switch (query_parameters.overrides[i].type) {
+	                case Sphinx.attribute.FLOAT:
+	                    request.push.float(query_parameters.overrides[i].values[id]);
+	                    break;
+	                case Sphinx.attribute.BIGINT:
+	                    request.push.int64(query_parameters.overrides[i].values[id]);
+	                    break;
+	                default:
+	                    request.push.int32(query_parameters.overrides[i].values[id]);
+	                    break;
+                }
+            }
+        }
 
         request.push.lstring(query_parameters.selectlist); // Select-list
 
