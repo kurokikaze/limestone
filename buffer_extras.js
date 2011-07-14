@@ -71,10 +71,10 @@ proto.int32Read = function int32Read(offset) {
 
 proto.int64Read = function int64Read(offset) {
   offset = offset || 0;
-  return [(this[offset] << 24) +
-         (this[offset + 1] << 16) +
-         (this[offset + 2] << 8) +
-         (this[offset + 3]),
+  return [(this[offset] << 56) +
+         (this[offset + 1] << 48) +
+         (this[offset + 2] << 40) +
+         (this[offset + 3] << 32),
          (this[offset + 4] << 24) +
          (this[offset + 5] << 16) +
          (this[offset + 6] << 8) +
