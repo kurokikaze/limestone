@@ -547,14 +547,14 @@ exports.SphinxClient = function() {
         output.total_found = response.int32();
         output.msecs = response.int32();
         output.words_count = response.int32();
-        output.words = [];
-        for (i = 0; i <= output.words; i++) {
-            output.words.push(response.lstring());
+        output.words = new Object();
+        for (i = 0; i < output.words_count; i++) {
+            var word = response.lstring();
+            output.words[word] = new Object();
+            output.words[word]["docs"] = response.int32();
+            output.words[word]["hits"] = response.int32();
         }
-        // sys.puts('Unused data:' + response.length + ' bytes');
-
-        // @todo: implement words
-
+        
         return output;
     };
 
