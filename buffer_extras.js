@@ -41,12 +41,12 @@ proto.int32Write = function int32Write(number, offset) {
 
 //Writes a 64 bit integer at offset - ok, it says it does, 
 // but JS does not have such a beast - here be dragons...
-proto.int64Write = function int64Write(hi, low, offset) {
+proto.int64Write = function int64Write(high, low, offset) {
   offset = offset || 0;
-  this[offset] = high >>> 56;
-  this[offset + 1] = high >>> 48;
-  this[offset + 2] = high >>> 40;
-  this[offset + 3] = high >>> 32;
+  this[offset] = high >>> 24;
+  this[offset + 1] = high >>> 16;
+  this[offset + 2] = high >>> 8;
+  this[offset + 3] = high >>> 0;
   this[offset + 4] = low >>> 24;
   this[offset + 5] = low >>> 16;
   this[offset + 6] = low >>> 8;
@@ -71,10 +71,10 @@ proto.int32Read = function int32Read(offset) {
 
 proto.int64Read = function int64Read(offset) {
   offset = offset || 0;
-  return ([this[offset] << 56) +
-         (this[offset + 1] << 48) +
-         (this[offset + 2] << 40) +
-         (this[offset + 3] << 32),
+  return [(this[offset] << 24) +
+         (this[offset + 1] << 16) +
+         (this[offset + 2] << 8) +
+         (this[offset + 3]),
          (this[offset + 4] << 24) +
          (this[offset + 5] << 16) +
          (this[offset + 6] << 8) +

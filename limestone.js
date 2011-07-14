@@ -179,19 +179,11 @@ exports.SphinxClient = function() {
     // sys.puts('Connecting to searchd...');
 
     self.query = function(query_raw, callback) {
-        var query;
+        var query = new Object();
 
         initResponseOutput(callback);
 
         var query_parameters = {
-            groupFunc: Sphinx.groupFunc.DAY,
-            groupsort: "@group desc",
-            groupdistinct: "",
-            groupby: '',
-            maxmatches: 1000,
-            selectlist: '*',
-            weights: [],
-            	
 			offset				: 0,
 			limit				: 20,
 			mode				: Sphinx.searchMode.ALL,
@@ -218,23 +210,23 @@ exports.SphinxClient = function() {
 			selectlist			: "*",
             indexes				: '*',
             comment				: '',
-	
+        	query				: "",
 			error				: "", // per-reply fields (for single-query case)
 			warning				: "",
 			connerror			: false,
 	
 			reqs				: [],	// requests storage (for multi-query case)
 			mbenc				: "",
-			arrayresult			: false,
+			arrayresult			: true,
 			timeout				: 0
         };
 
         if (query_raw.query) {
             for (x in query_parameters) {
             	if (query_raw.hasOwnProperty(x)) {
-                    query[x] = query_raw[query];            		
+                    query[x] = query_raw[x];            		
             	} else {
-                    query[x] = query_parameters[query];            		            		
+                    query[x] = query_parameters[x];
             	}
             }
         } else {
@@ -251,20 +243,21 @@ exports.SphinxClient = function() {
 		request.push.int16(Sphinx.command.SEARCH);
 		request.push.int16(Sphinx.clientCommand.SEARCH);
 		
-        //request.push.int32(0); // This will be request length
-        request.push.int64(0,1);
-		//request.push.int32(0);
-		request.push.int64(0,20);
+        request.push.int32(0); // This will be request length
+        request.push.int32(0);
+        request.push.int32(1);
+        
+		request.push.int32(query.offset);
 		
+		request.push.int32(query.limit);
+
 		request.push.int32(query.mode);
 		request.push.int32(query.ranker);
 		
 		request.push.int32(query.sort);
 		
         request.push.lstring(query.sortby); 
-
-        request.push.lstring(query); // Query text
-
+        request.push.lstring(query.query); // Query text
         request.push.int32(query.weights.length); 
         for (var weight in query.weights) {
             request.push.int32(parseInt(weight));
@@ -372,7 +365,7 @@ exports.SphinxClient = function() {
         req_length.push.int32(request_buf.length - 8);
         req_length.toBuffer().copy(request_buf, 4, 0);
 
-        // console.log('Sending request of ' + request_buf.length + ' bytes');
+        console.log('Sending request of ' + request_buf.length + ' bytes');
         server_conn.write(request_buf);
     };
 
@@ -462,7 +455,6 @@ exports.SphinxClient = function() {
 
         output.status = response.int32();
 	if (output.status != 0) {
-		sys.puts("Status =" + output.status);
 		return(response.lstring());
 	}
         output.num_fields = response.int32();
@@ -517,7 +509,6 @@ exports.SphinxClient = function() {
             //
             var attr_value;
             // var attribute;
-sys.puts(sys.inspect(output.attributes));
             for (attribute in output.attributes) {
                 // BIGINT size attributes (64 bits)
                 if (output.attributes[attribute].type == Sphinx.attribute.BIGINT) {
@@ -537,7 +528,6 @@ sys.puts(sys.inspect(output.attributes));
                 // STRING attributes
                 if (output.attributes[attribute].type == Sphinx.attribute.STRING) {
                     attr_value = response.lstring();
-                    sys.puts(output.attributes[attribute].name + " [" + attr_value + "]");
                     match.attrs[output.attributes[attribute].name] = attr_value;
                     continue;
                 }
@@ -545,7 +535,6 @@ sys.puts(sys.inspect(output.attributes));
                 // We don't need this branch right now,
                 // as it is covered by previous `if`
                 // @todo: implement MULTI attribute type
-                sys.puts("NO WAY");
                 attr_value = response.int32();
                 match.attrs[output.attributes[attribute].name] = attr_value;
             }
