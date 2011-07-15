@@ -493,10 +493,9 @@ exports.SphinxClient = function() {
             // Here server tells us which format for document IDs
             // it uses: int64 or int32
             if (output.id64 == 1) {
-                // here we must fetch int64 document id
-                // and immediately throw half of it away :)
-                var id64 = response.int32();
-                match.doc = response.int32();
+                // get the 64-bit result, but only use the lower half for now
+                var id64 = response.int64();
+                match.doc = id64[1];
                 match.weight = response.int32();
             } else {
                 // Good news: document id fits our integers size :)
