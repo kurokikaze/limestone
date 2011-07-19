@@ -39,6 +39,20 @@ proto.int32Write = function int32Write(number, offset) {
   this[offset + 3] = number >>> 0;
 };
 
+//Writes a 64 bit integer at offset - ok, it says it does, 
+// but JS does not have such a beast - here be dragons...
+proto.int64Write = function int64Write(high, low, offset) {
+  offset = offset || 0;
+  this[offset] = high >>> 24;
+  this[offset + 1] = high >>> 16;
+  this[offset + 2] = high >>> 8;
+  this[offset + 3] = high >>> 0;
+  this[offset + 4] = low >>> 24;
+  this[offset + 5] = low >>> 16;
+  this[offset + 6] = low >>> 8;
+  this[offset + 7] = low >>> 0;
+};
+
 // Writes a 16 bit integer at offset
 proto.int16Write = function int16Write(number, offset) {
   offset = offset || 0;
@@ -55,16 +69,19 @@ proto.int32Read = function int32Read(offset) {
          this[offset + 3];
 };
 
+//  With this func, you are responsible for dealing with the hi and
+// low parts - it is not the job of this module to deal with 
+// 64-bit integers - at least, not right now.
 proto.int64Read = function int64Read(offset) {
   offset = offset || 0;
-  return (this[offset] << 512) +
-         (this[offset + 1] << 256) +
-         (this[offset + 2] << 128) +
-         (this[offset + 3] << 64) +
-         (this[offset + 4] << 32) +
+  return [(this[offset] << 24) +
+         (this[offset + 1] << 16) +
+         (this[offset + 2] << 8) +
+         (this[offset + 3]),
+         (this[offset + 4] << 24) +
          (this[offset + 5] << 16) +
          (this[offset + 6] << 8) +
-         this[offset + 7];
+         this[offset + 7]];
 };
 
 // Reads a 32 bit integer from offset
@@ -78,12 +95,18 @@ Buffer.makeWriter = function makeWriter() {
   var data = [];
   var writer;
   var push = {
-    int32: function pushInt32(number) {
-      var b = new Buffer(4);
-      b.int32Write(number);
+    int64: function pushInt64(hi, low) {
+      var b = new Buffer(8);
+      b.int64Write(hi, low);
       data.push(b);
       return writer;
     },
+    int32: function pushInt32(number) {
+        var b = new Buffer(4);
+        b.int32Write(number);
+        data.push(b);
+        return writer;
+      },
     int16: function pushInt16(number) {
       var b = new Buffer(2);
       b.int16Write(number);
@@ -150,9 +173,9 @@ proto.toReader = function toReader() {
       return offset >= length;
     },
     int64: function shiftInt64() {
-      var number = buffer.int64Read(offset);
+      var hi_low_pair = buffer.int64Read(offset);
       offset += 8;
-      return number;
+      return hi_low_pair;
     },
     int32: function shiftInt32() {
       var number = buffer.int32Read(offset);
