@@ -3,6 +3,7 @@
     "description":"Sphinx search server connector for Node.js",
     "version":"v0.1.1",
     "keywords":"sphinx, search, searchd, text",
+		"main": "./limestone.js",
     "maintainers":[{
        "name": "Serge Shirokov",
        "email": "bolter.fire@gmail.com",
