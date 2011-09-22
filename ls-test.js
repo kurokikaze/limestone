@@ -24,7 +24,7 @@ http.createServer(function (request, response) {
       } else {
 
           var startDate = (new Date()).getTime();
-          var query = limestone.query('test', function(err, answer) {
+          var query = limestone.query({'query':'test'}, function(err, answer) {
 
             limestone.disconnect();
 
