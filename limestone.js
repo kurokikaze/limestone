@@ -123,7 +123,7 @@ exports.SphinxClient = function() {
 	    return;
 	}
 	
-        server_conn = tcp.createConnection(port || Sphinx.port);
+        server_conn = tcp.createConnection(port);
 	conn_in_progress = 1;
         // disable Nagle algorithm
         server_conn.setNoDelay(true);
