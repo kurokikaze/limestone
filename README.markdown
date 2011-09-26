@@ -16,3 +16,22 @@ Usage:
             sys.puts("Extended search for 'test' yielded " + answer.match_count + " results: " + JSON.stringify(answer));
         });
     });
+
+To Use Build_Excerpts:
+
+   limestone.connect(9312, function(err) {
+     if (err) {
+       sys.puts('Connection error: ' + err);
+     }
+     sys.puts('Connected Build Excerpts');
+     limestone.build_excerpts(
+         ['this is my teste text to be highlighted', 'this is another test text to be highlighted'], // docs
+         'questions_1',
+         'test text',
+	 {},
+         function(err, answer) {
+           limestone.disconnect();
+           sys.puts(JSON.stringify(answer));
+         }
+     );
+   });

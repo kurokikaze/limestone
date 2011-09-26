@@ -469,6 +469,7 @@ exports.SphinxClient = function() {
     }; // build_excerpts
 
     self.disconnect = function() {
+	conn_in_progress = 0;
         server_conn.end();
     };
 
@@ -477,10 +478,6 @@ exports.SphinxClient = function() {
         // Command must match the one used in query
         response_output.append(data);
 	response_output.runCallbackIfDone(search_commands.shift());
-	if(response_output.done()){
-	    server_conn.end();
-	    conn_in_progress = 0;
-	}
     }
 
     function initResponseOutput(query_callback) {
