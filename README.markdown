@@ -19,19 +19,19 @@ Usage:
 
 To Use Build_Excerpts:
 
-   limestone.connect(9312, function(err) {
-     if (err) {
-       sys.puts('Connection error: ' + err);
-     }
-     sys.puts('Connected Build Excerpts');
-     limestone.build_excerpts(
-         ['this is my teste text to be highlighted', 'this is another test text to be highlighted'], // docs
-         'questions_1',
-         'test text',
-	 {},
-         function(err, answer) {
-           limestone.disconnect();
-           sys.puts(JSON.stringify(answer));
-         }
-     );
-   });
+    limestone.connect(9312, function(err) {
+      if (err) {
+        sys.puts('Connection error: ' + err);
+      }
+      sys.puts('Connected Build Excerpts');
+      limestone.build_excerpts(
+          ['this is my teste text to be highlighted', 'this is another test text to be highlighted'], // docs
+          'questions_1',
+          'test text',
+	  {},
+          function(err, answer) {
+            limestone.disconnect();
+            sys.puts(JSON.stringify(answer));
+          }
+      );
+    });
