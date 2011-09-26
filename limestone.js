@@ -102,13 +102,21 @@ exports.SphinxClient = function() {
     var server_conn;
     var connection_status;
     var response_output;
+    var conn_in_progress = 0;
 
     var search_commands = [];
 
     // Connect to Sphinx server
     self.connect = function(port, callback) {
 
+	// very ugly method of making sure no attempt to connection is made until all previous are done
+	if(conn_in_progress == 1){
+	    setTimeout(self.connect,10,port,callback);
+	    return;
+	}
+	
         server_conn = tcp.createConnection(port || Sphinx.port);
+	conn_in_progress = 1;
         // disable Nagle algorithm
         server_conn.setNoDelay(true);
         //server_conn.setEncoding('binary');
@@ -129,17 +137,11 @@ exports.SphinxClient = function() {
                 server_conn.write(version_number.toBuffer());
 
                 // Waiting for answer
-                server_conn.on('data', function(data) {
+                server_conn.once('data', function(data) {
                     /*if (response_output) {
                         sys.puts('connect: Data received from server');
                     }*/
 
-                    // var data_unpacked = binary.unpack('N*', data);
-	            var receive_listeners = server_conn.listeners('data');
-		    var i, z;
-		    for (i = 0; i < receive_listeners.length; i++) {
-                        server_conn.removeListener('data', receive_listeners[i]);
-                    }
 		    var protocol_version_raw = data.toReader();
                     var protocol_version = protocol_version_raw.int32();
                     var data_unpacked = {'': protocol_version};
@@ -147,12 +149,6 @@ exports.SphinxClient = function() {
                     //  console.log('Protocol version: ' + protocol_version);
 
                     if (data_unpacked[""] >= 1) {
-
-                        // Remove listener after handshaking
-                        var listeners = server_conn.listeners('data');
-                        for (z = 0; z < listeners.length; z++) {
-                            server_conn.removeListener('data', listeners[z]);
-                        }
 
                         // Simple connection status indicator
                         connection_status = 1;
@@ -165,14 +161,20 @@ exports.SphinxClient = function() {
 
                     } else {
                         callback(new Error('Wrong protocol version: ' + protocol_version));
+                        conn_in_progress = 0;
+                        server_conn.end();
                     }
 
                 });
                 server_conn.on('error', function(exp) {
                     console.log('Error: ' + exp);
+                    server_conn.end();
+                    conn_in_progress = 0;
                 });
             } else {
                 callback(new Error('Connection is ' + server_conn.readyState + ' in OnConnect'));
+                server_conn.end();
+		conn_in_progress = 0;
             }
         });
 
@@ -475,6 +477,10 @@ exports.SphinxClient = function() {
         // Command must match the one used in query
         response_output.append(data);
 	response_output.runCallbackIfDone(search_commands.shift());
+	if(response_output.done()){
+	    server_conn.end();
+	    conn_in_progress = 0;
+	}
     }
 
     function initResponseOutput(query_callback) {
@@ -536,7 +542,6 @@ exports.SphinxClient = function() {
                     var answer;
                     var errmsg = this.checkResponse(search_command);
                     if (!errmsg) {
-			sys.puts('going to parseResponse');
                         answer = parseResponse(response_output.data, search_command);
                     }
                     query_callback(errmsg, answer);
