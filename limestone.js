@@ -107,7 +107,15 @@ exports.SphinxClient = function() {
     var search_commands = [];
 
     // Connect to Sphinx server
-    self.connect = function(port, callback) {
+    self.connect = function(port, persistent, callback) {
+
+	// arguments: port, persistent, callback. 
+	var args = Array.prototype.slice.call(arguments);
+
+	var callback = args.pop();
+	var port = args.length ? args.shift(): Sphinx.port;
+	var persistent = args.length ? args.shift() : false;
+
 
 	// very ugly method of making sure no attempt to connection is made until all previous are done
 	if(conn_in_progress == 1){
@@ -134,8 +142,6 @@ exports.SphinxClient = function() {
             if (server_conn.readyState == 'open') {
 		var version_number = Buffer.makeWriter();
 		version_number.push.int32(1);
-                server_conn.write(version_number.toBuffer());
-
                 // Waiting for answer
                 server_conn.once('data', function(data) {
                     /*if (response_output) {
@@ -146,12 +152,21 @@ exports.SphinxClient = function() {
                     var protocol_version = protocol_version_raw.int32();
                     var data_unpacked = {'': protocol_version};
 
-                    //  console.log('Protocol version: ' + protocol_version);
-
                     if (data_unpacked[""] >= 1) {
 
                         // Simple connection status indicator
                         connection_status = 1;
+
+			server_conn.write(version_number.toBuffer());
+
+			if(persistent){
+			    var pers_req = Buffer.makeWriter();
+			    pers_req.push.int16(Sphinx.command.PERSIST);
+			    pers_req.push.int16(0);
+			    pers_req.push.int32(4);
+			    pers_req.push.int32(1);
+			    server_conn.write(pers_req.toBuffer());
+			}
 
                         server_conn.on('data', readResponseData);
 
