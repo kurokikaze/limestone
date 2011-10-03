@@ -1,7 +1,7 @@
 var limestone = require("./limestone").SphinxClient(),
     sys = require("sys");
 
-// 9312 is standard Sphinx port.
+// 9312 is standard Sphinx port
 limestone.connect(9312, function(err) {
     if (err) {
         sys.puts('Connection error: ' + err);
