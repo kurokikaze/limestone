@@ -1,5 +1,4 @@
 var tcp = require('net');
-var sys = require('util');
 
 exports.SphinxClient = function() {
     var self = { };
@@ -135,9 +134,9 @@ exports.SphinxClient = function() {
 
         server_conn.addListener('connect', function () {
 
-            //sys.puts('Connected, sending protocol version... State is ' + server_conn.readyState);
+            // console.log('Connected, sending protocol version... State is ' + server_conn.readyState);
             // Sending protocol version
-            // sys.puts('Sending version number...');
+            // console.log('Sending version number...');
             // Here we must send 4 bytes, '0x00000001'
             if (server_conn.readyState == 'open') {
 		var version_number = Buffer.makeWriter();
@@ -145,7 +144,7 @@ exports.SphinxClient = function() {
                 // Waiting for answer
                 server_conn.once('data', function(data) {
                     /*if (response_output) {
-                        sys.puts('connect: Data received from server');
+                        console.log('connect: Data received from server');
                     }*/
 
 		    var protocol_version_raw = data.toReader();
@@ -195,7 +194,7 @@ exports.SphinxClient = function() {
 
     };
 
-    // sys.puts('Connecting to searchd...');
+    // console.log('Connecting to searchd...');
 
     self.query = function(query_raw, callback) {
         var query = new Object();
@@ -253,7 +252,7 @@ exports.SphinxClient = function() {
         }
 
         /* if (connection_status != 1) {
-         sys.puts("You must connect to server before issuing queries");
+         console.log("You must connect to server before issuing queries");
          return false;
 
          }  */
@@ -518,7 +517,7 @@ exports.SphinxClient = function() {
             },
             append  : function(data) {
                 //this.data.write(data.toString('utf-8'), 'utf-8');
-                // sys.puts('Appending ' + data.length + ' bytes');
+                // console.log('Appending ' + data.length + ' bytes');
                 var new_buffer = new Buffer(this.data.length + data.length);
                 this.data.copy(new_buffer, 0, 0);
                 data.copy(new_buffer, this.data.length, 0);
