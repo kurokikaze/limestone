@@ -1,23 +1,48 @@
 {
-    "name":"limestone",
-    "description":"Sphinx search server connector for Node.js",
-    "version":"v0.1.1",
-    "keywords":"sphinx, search, searchd, text",
-		"main": "./limestone.js",
-    "maintainers":[{
-       "name": "Serge Shirokov",
-       "email": "bolter.fire@gmail.com",
-       "web": "http://kuroikaze85.wordpress.com"
-    }],
-    "bugs":"http://github.com/kurokikaze/limestone/issues",
-    "licenses": [{
-       "type": "Creative Commons - Attribution 3.0",
-       "url": "http://creativecommons.org/licenses/by/3.0/"
-    }],
-    "repositories": [{
-        "type": "git",
-        "url": "git://github.com/kurokikaze/limestone"
-    }],
-    "engine":"node",
-    "implements": [ "CommonJS/Modules/1.0"]
+  "name": "limestone",
+  "description": "Sphinx search server connector for Node.js",
+  "version": "0.1.2",
+  "keywords": [
+    "sphinx",
+    "search",
+    "searchd",
+    "text"
+  ],
+  "main": "./limestone.js",
+  "maintainers": [
+    "Serge Shirokov <bolter.fire@gmail.com> (http://kuroikaze85.wordpress.com)"
+  ],
+  "bugs": {
+    "name": "http://github.com/kurokikaze/limestone/issues"
+  },
+  "licenses": [
+    {
+      "type": "Creative Commons - Attribution 3.0",
+      "url": "http://creativecommons.org/licenses/by/3.0/"
+    }
+  ],
+  "repositories": [
+    {
+      "type": "git",
+      "url": "git://github.com/kurokikaze/limestone"
+    }
+  ],
+  "engine": "node",
+  "implements": [
+    "CommonJS/Modules/1.0"
+  ],
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "author": "Sergey Shirokov <bolter.fire@gmail.com> (http://kuroikaze85.wordpress.com)",
+  "homepage": "http://kurokikaze.github.com/limestone",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/kurokikaze/limestone.git"
+  },
+  "scripts": {
+    "test": "node ls-test.js"
+  }
 }
