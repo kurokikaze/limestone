@@ -346,7 +346,7 @@ exports.SphinxClient = function() {
         }
 
         request.push.int32(query_parameters.maxquerytime); 
-	// per-field weights (preferred method)
+	    // per-field weights (preferred method)
         request.push.int32(Object.keys(query.fieldweights).length);
         for (var field_name in query.fieldweights) {
 	    request.push.lstring(field_name);
