@@ -1,5 +1,5 @@
 var tcp = require('net');
-var sys = require('sys');
+var sys = require('util');
 
 exports.SphinxClient = function() {
     var self = { };
