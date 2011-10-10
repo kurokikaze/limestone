@@ -224,7 +224,7 @@ exports.SphinxClient = function() {
 	    indexweights		: [],
 	    ranker				: Sphinx.rankingMode.PROXIMITY_BM25,
 	    maxquerytime		: 0,
-	    weights				: [],
+	    fieldweights				: {},
 	    overrides 			: [],
 	    selectlist			: "*",
             indexes				: '*',
@@ -347,11 +347,11 @@ exports.SphinxClient = function() {
         }
 
         request.push.int32(query_parameters.maxquerytime); 
-
-        request.push.int32(query_parameters.weights.length);
-        for (var i in query_parameters.weights) {
-            request.push.int32(i);
-            request.push.int32(query_parameters.weights[i]);
+	// per-field weights (preferred method)
+        request.push.int32(Object.keys(query.fieldweights).length);
+        for (var field_name in query.fieldweights) {
+	    request.push.lstring(field_name);
+            request.push.int32(query.fieldweights[field_name]);
         }
 
         request.push.lstring(query_parameters.comment); 
