@@ -1,5 +1,4 @@
-var sys = require("sys"),
-   http = require("http"),
+var http = require("http"),
    limestone = require("./limestone").SphinxClient();
 http.createServer(function (request, response) {
 
