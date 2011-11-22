@@ -77,3 +77,19 @@ You can ask sphinx to open a persistent connection. You can then make several re
 			      }
 			  );
 		      });
+
+Limestone is queueing now:
+You can safely call limestone.query or limestone.build_excerpts methods outside the scope of the callback functions, provided the connection is made persistent. Limestone will enqueue the sphinx commands and run them sequentially.
+
+This works:
+   limestone.connect(9312, // port. 9312 is standard Sphinx port
+		      function(err) { // callback
+		          ...
+			  limestone.query(
+			      {'query':'test', maxmatches:1}, 
+			      function(err, answer) {
+			          ....
+			      });
+		      });
+
+    limestone.query({'second query':'test'}, function(err, answer){..}); // won't crash with previous
