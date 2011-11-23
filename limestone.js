@@ -529,12 +529,12 @@ exports.SphinxClient = function() {
 	    },
 	    runCallbackIfDone : function(search_command) {
 		if (this.done()) {
+		    _dequeue();
 		    var answer;
 		    var errmsg = this.checkResponse(search_command);
 		    if (!errmsg) {
 			answer = parseResponse(response_output.data, search_command);
 		    }
-		    _dequeue();
 		    query_callback(errmsg, answer);
 		}
 	    }
