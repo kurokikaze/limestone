@@ -114,10 +114,15 @@ exports.SphinxClient = function() {
 	var callback = args.pop();
 	var port = args.length ? args.shift(): Sphinx.port;
 	var persistent =  _persistent = args.length ? args.shift() : false;
-
-	server_conn = tcp.createConnection(port);
+	server_conn = tcp.createConnection(port);    
+	server_conn.once('error', function(x){
+			     console.log('Error: '+x);
+			     server_conn.end();
+			     callback(x);
+			 });
 	// disable Nagle algorithm
 	server_conn.setNoDelay(true);
+
 	server_conn.addListener('connect', 
 				function () {
 				    // Sending protocol version
@@ -154,10 +159,6 @@ exports.SphinxClient = function() {
 							     }
 							     
 							 });
-					server_conn.on('error', function(exp) {
-							   console.log('Error: ' + exp);
-							   server_conn.end();
-						       });
 				    } else {
 					callback(new Error('Connection is ' + server_conn.readyState + ' in OnConnect'));
 					server_conn.end();
@@ -340,7 +341,7 @@ exports.SphinxClient = function() {
 	req_length.push.int32(request_buf.length - 8);
 	req_length.toBuffer().copy(request_buf, 4, 0);
 
-	console.log('Sending search request of ' + request_buf.length + ' bytes');
+	console.log('Sending search request of ' + request_buf.length + ' bytes'); 
 	
 	_enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);
     };
@@ -359,7 +360,7 @@ exports.SphinxClient = function() {
 	    around                  : 5,
 	    start_passage_id        : 1,
 	    passage_boundary        : 'none'
-	}
+	};
 
 	for (x in passage_parameters) {
 	    if (passage_opts_raw.hasOwnProperty(x)) {
@@ -380,7 +381,7 @@ exports.SphinxClient = function() {
 	    'load_files'      : 128,
 	    'allow_empty'     : 256,
 	    'emit_zones'      : 256
-	}
+	};
 	
 	for (x in flag_properties) {
 	    if (passage_opts_raw.hasOwnProperty(x)) {
@@ -529,12 +530,16 @@ exports.SphinxClient = function() {
 	    },
 	    runCallbackIfDone : function(search_command) {
 		if (this.done()) {
-		    _dequeue();
 		    var answer;
+		    var cloned = new Buffer(response_output.data.length);
+		    // clone the response data, so we can dequeue and let the server free to modify again response_output
+		    response_output.data.copy(cloned);
+		    _dequeue();
 		    var errmsg = this.checkResponse(search_command);
 		    if (!errmsg) {
-			answer = parseResponse(response_output.data, search_command);
+			answer = parseResponse(cloned, search_command);
 		    }
+
 		    query_callback(errmsg, answer);
 		}
 	    }
@@ -547,11 +552,11 @@ exports.SphinxClient = function() {
 	} else if (search_command == Sphinx.clientCommand.EXCERPT) {
 	    return parseExcerptResponse(data);
 	}
-    }
+	return null;
+    };
 
     var parseSearchResponse = function (data) {
 	var output = {};
-	// var response = new bits.Decoder(data);
 	var response = data.toReader();
 	var i;
 	output.status = response.int32();
