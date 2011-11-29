@@ -1,4 +1,5 @@
 var tcp = require('net');
+var uuid = require('node-uuid');
 
 exports.SphinxClient = function() {
     var self = { };
@@ -134,8 +135,25 @@ exports.SphinxClient = function() {
 					server_conn.once('data', function(data) {
 							     var protocol_version_raw = data.toReader();
 							     var protocol_version = protocol_version_raw.int32();
+							     // if there still data? process and callback
+							     if(!protocol_version_raw.empty()) {
+								 status_code = protocol_version_raw.int16();
+								 version = protocol_version_raw.int16();
+								 server_message = protocol_version_raw.lstring();
+								 if(status_code == Sphinx.statusCode.ERROR){
+								     errmsg = 'Server issued ERROR: '+server_message;
+								 }
+								 if(status_code == Sphinx.statusCode.RETRY){
+								     errmsg = 'Server issued RETRY: '+server_message;
+								 }
+								 if(errmsg){
+								     callback(errmsg);
+								 }
+							     }
+
 							     var data_unpacked = {'': protocol_version};
 							     if (data_unpacked[""] >= 1) {
+								 //all ok, send my version
 								 server_conn.write(version_number.toBuffer());
 								 
 								 if(persistent){
@@ -146,9 +164,9 @@ exports.SphinxClient = function() {
 								     pers_req.push.int32(1);
 								     server_conn.write(pers_req.toBuffer());
 								 }
-								 server_conn.emit('sphinx.connected');
-								 _connected = true;
 								 server_conn.on('data', readResponseData);
+								 _connected = true;
+								 server_conn.emit('sphinx.connected');
 								 
 								 // Use callback
 								 callback(null);
@@ -341,7 +359,7 @@ exports.SphinxClient = function() {
 	req_length.push.int32(request_buf.length - 8);
 	req_length.toBuffer().copy(request_buf, 4, 0);
 
-	console.log('Sending search request of ' + request_buf.length + ' bytes'); 
+	console.log('Sending search request of ' + request_buf.length + ' bytes '); 
 	
 	_enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);
     };
@@ -439,6 +457,7 @@ exports.SphinxClient = function() {
 
     function _enqueue(req_buf , cb, sc) {
 	if(!server_conn || !server_conn.writable){
+
 	    throw new Error('Trying to enqueue. Not connected');
 	}
 	_queue.push({request_buffer: req_buf, callback: cb, search_command: sc});
@@ -475,7 +494,6 @@ exports.SphinxClient = function() {
 
     function readResponseData(data) {
 	// Got response!
-	// Command must match the one used in query
 	response_output.append(data);
 	response_output.runCallbackIfDone(_queue[0]['search_command']);
     }
@@ -489,14 +507,12 @@ exports.SphinxClient = function() {
 	    parseHeader : function() {
 		if (this.status === null && this.data.length >= 8) {
 		    var decoder = this.data.toReader();
-		    // var decoder = new bits.Decoder(this.data);
 
 		    this.status  = decoder.int16();
 		    this.version = decoder.int16();
 		    this.length  = decoder.int32();
 
 		    this.data = this.data.slice(8, this.data.length);
-		    // this.data = decoder.string(this.data.length - 8);
 		}
 	    },
 	    append  : function(data) {
@@ -526,6 +542,11 @@ exports.SphinxClient = function() {
 		if (this.status == Sphinx.statusCode.ERROR) {
 		    errmsg += "Server issued ERROR: " + this.data;
 		}
+
+		if (this.status == Sphinx.statusCode.RETRY){
+		    errmsg += "Server issued RETRY: " + this.data;
+		}
+		
 		return errmsg;
 	    },
 	    runCallbackIfDone : function(search_command) {
