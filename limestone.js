@@ -147,7 +147,7 @@ exports.SphinxClient = function() {
 								     errmsg = 'Server issued RETRY: '+server_message;
 								 }
 								 if(errmsg){
-								     callback(errmsg);
+								     callback(new Error(errmsg));
 								 }
 							     }
 
@@ -360,8 +360,8 @@ exports.SphinxClient = function() {
 	req_length.toBuffer().copy(request_buf, 4, 0);
 
 	console.log('Sending search request of ' + request_buf.length + ' bytes '); 
-	
-	_enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);
+	_enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);	    
+
     };
 
     self.build_excerpts = function(docs, index, words, passage_opts_raw, callback){
@@ -457,8 +457,7 @@ exports.SphinxClient = function() {
 
     function _enqueue(req_buf , cb, sc) {
 	if(!server_conn || !server_conn.writable){
-
-	    throw new Error('Trying to enqueue. Not connected');
+	    cb(new Error("Trying to enqueue. Not connected"));
 	}
 	_queue.push({request_buffer: req_buf, callback: cb, search_command: sc});
 	if(_queue.length === 1)
