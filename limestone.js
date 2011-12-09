@@ -116,8 +116,8 @@ exports.SphinxClient = function() {
 	var port = args.length ? args.shift(): Sphinx.port;
 	var persistent =  _persistent = args.length ? args.shift() : false;
 	server_conn = tcp.createConnection(port);    
-	server_conn.once('error', function(x){
-			     console.log('Error: '+x);
+	server_conn.on('error', function(x){
+		             console.log('Error: '+x);
 			     server_conn.end();
 			     callback(x);
 			 });
