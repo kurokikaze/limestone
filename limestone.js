@@ -1,5 +1,4 @@
 var tcp = require('net');
-var uuid = require('node-uuid');
 
 exports.SphinxClient = function() {
     var self = { };
