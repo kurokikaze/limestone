@@ -121,10 +121,8 @@ exports.SphinxClient = function() {
         var host = hostport[0].trim().length ? hostport[0].trim(): 'localhost' ;
         var port = hostport[1].trim().length ? hostport[1].trim() : Sphinx.port;
 
-
-
 	var persistent =  _persistent = args.length ? args.shift() : false;
-        console.log('connecting to : '+host+':'+port);
+
 	server_conn = tcp.createConnection(port, host);
 	server_conn.on('error', function(x){
 		             console.log('Error: '+x);
