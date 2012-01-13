@@ -158,7 +158,6 @@ exports.SphinxClient = function() {
 
 		    var protocol_version_raw = data.toReader();
                     var protocol_version = protocol_version_raw.int32();
-
                     // if there still data? process and callback
                     if(!protocol_version_raw.empty()) {
                         status_code = protocol_version_raw.int16();
@@ -498,6 +497,7 @@ exports.SphinxClient = function() {
 	req_length.toBuffer().copy(request_buf,4,0);
 
 	//console.log('Sending build excerpt request of ' + request_buf.length + 'bytes');
+	
 	_enqueue(request_buf, callback, Sphinx.clientCommand.EXCERPT);
     }; // build_excerpts
 
