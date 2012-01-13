@@ -201,6 +201,7 @@ exports.SphinxClient = function() {
 
         initResponseOutput(callback);
 
+        // Default query parameters
         var query_parameters = {
 	    offset				: 0,
 	    limit				: 20,
@@ -258,7 +259,7 @@ exports.SphinxClient = function() {
          }  */
 
 	var request = Buffer.makeWriter(); 
-        request.push.int16(Sphinx.command.SEARCH);
+    request.push.int16(Sphinx.command.SEARCH);
 	request.push.int16(Sphinx.clientCommand.SEARCH);
 		
         request.push.int32(0); // This will be request length
@@ -283,24 +284,33 @@ exports.SphinxClient = function() {
 
         request.push.lstring(query.indexes); // Indexes used JEZ
 
-      request.push.int32(1); // id64 range marker
+        request.push.int32(1); // id64 range marker
 
         //request.push.int32(0);
         request.push.int64(0, query.min_id); // This is actually supposed to be two 64-bit numbers
         //request.push.int32(0);				//  However, there is a caveat about using 64-bit ids
         request.push.int64(0, query.max_id); 
 
+        //console.log('Found ' + query.filters.length + ' filters');
         request.push.int32(query.filters.length); 
-        for (var filter in query.filters) {
-            request.push.int32(filter.attr.length);
+        for (var filter_id in query.filters) {
+            var filter = query.filters[filter_id];
+            //console.log('Found filter of type ' + filter.type)
+            if (!filter.attr) {
+                filter.attr = "";
+            }
+            if (!filter.exclude) {
+                filter.exclude = 0;
+            }
+            //request.push.int32(filter.attr.length);//WTF? length is included in lstring
             request.push.lstring(filter.attr);
             request.push.int32(filter.type);
             switch (filter.type) {
             	case Sphinx.filterTypes.VALUES:
-            		request.push.int32(filter.values.length);
-            		for (var value in filter.values) {
+            		request.push.int32(filter.values.length); // Count of values
+            		for (var value_id in filter.values) {
                 		//request.push.int32(0);		// should be a 64-bit number
-                		request.push.int64(0, value);
+                		request.push.int64(0, filter.values[value_id]);
             		}
             		break;
             	case Sphinx.filterTypes.RANGE:
@@ -314,6 +324,7 @@ exports.SphinxClient = function() {
             		request.push.float(filter.max);
             		break;
             }
+            request.push.int32(filter.exclude);
         }
         
         request.push.int32(query_parameters.groupfunc);
@@ -383,7 +394,7 @@ exports.SphinxClient = function() {
       req_length.push.int32(request_buf.length - 8);
       req_length.toBuffer().copy(request_buf, 4, 0);
 
-      console.log('Sending search request of ' + request_buf.length + ' bytes');
+      //console.log('Sending search request of ' + request_buf.length + ' bytes');
 
       server_conn.write(request_buf);
       // we also add the command to the search_commands queue
@@ -475,7 +486,7 @@ exports.SphinxClient = function() {
 	req_length.push.int32(request_buf.length - 8);
 	req_length.toBuffer().copy(request_buf,4,0);
 
-	console.log('Sending build excerpt request of ' + request_buf.length + 'bytes');
+	//console.log('Sending build excerpt request of ' + request_buf.length + 'bytes');
 	
 	server_conn.write(request_buf);
 	// we also add the command to the search_commands queue
