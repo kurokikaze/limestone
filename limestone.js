@@ -98,6 +98,8 @@ exports.SphinxClient = function() {
         "MULTI":          0x40000000 
     };
 
+    self.Sphinx = Sphinx;
+
     var server_conn;
     var connection_status;
     var response_output;
