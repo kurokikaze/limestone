@@ -293,7 +293,7 @@ exports.SphinxClient = function() {
         request.push.int32(query.filters.length); 
         for (var filter in query.filters) {
             request.push.int32(filter.attr.length);
-            request.push_lstring(filter.attr);
+            request.push.lstring(filter.attr);
             request.push.int32(filter.type);
             switch (filter.type) {
             	case Sphinx.filterTypes.VALUES:
