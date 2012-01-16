@@ -95,7 +95,7 @@ exports.SphinxClient = function() {
         "FLOAT":          5,
         "BIGINT":         6,
         "STRING":         7,
-        "MULTI":          0x40000000 
+        "MULTI":          0x40000000
     };
 
     self.Sphinx = Sphinx;
@@ -263,7 +263,7 @@ exports.SphinxClient = function() {
 	    error				: "", // per-reply fields (for single-query case)
 	    warning				: "",
 	    connerror			: false,
-	    
+
 	    reqs				: [],	// requests storage (for multi-query case)
 	    mbenc				: "",
 	    arrayresult			: true,
@@ -273,7 +273,7 @@ exports.SphinxClient = function() {
         if (query_raw.query) {
             for (x in query_parameters) {
             	if (query_raw.hasOwnProperty(x)) {
-                    query[x] = query_raw[x];            		
+                    query[x] = query_raw[x];
             	} else {
                     query[x] = query_parameters[x];
             	}
@@ -283,26 +283,26 @@ exports.SphinxClient = function() {
         }
 
 
-	var request = Buffer.makeWriter(); 
+	var request = Buffer.makeWriter();
     request.push.int16(Sphinx.command.SEARCH);
 	request.push.int16(Sphinx.clientCommand.SEARCH);
-		
+
         request.push.int32(0); // This will be request length
         request.push.int32(0);
         request.push.int32(1);
-        
+
 	request.push.int32(query.offset);
-		
+
 	request.push.int32(query.limit);
 
 	request.push.int32(query.mode);
 	request.push.int32(query.ranker);
-	
+
 	request.push.int32(query.sort);
-		
-        request.push.lstring(query.sortby); 
+
+        request.push.lstring(query.sortby);
         request.push.lstring(query.query); // Query text
-        request.push.int32(query.weights.length); 
+        request.push.int32(query.weights.length);
         for (var weight in query.weights) {
             request.push.int32(parseInt(weight));
         }
@@ -314,10 +314,10 @@ exports.SphinxClient = function() {
         //request.push.int32(0);
         request.push.int64(0, query.min_id); // This is actually supposed to be two 64-bit numbers
         //request.push.int32(0);				//  However, there is a caveat about using 64-bit ids
-        request.push.int64(0, query.max_id); 
+        request.push.int64(0, query.max_id);
 
         //console.log('Found ' + query.filters.length + ' filters');
-        request.push.int32(query.filters.length); 
+        request.push.int32(query.filters.length);
         for (var filter_id in query.filters) {
             var filter = query.filters[filter_id];
             //console.log('Found filter of type ' + filter.type)
@@ -351,7 +351,7 @@ exports.SphinxClient = function() {
             }
             request.push.int32(filter.exclude);
         }
-        
+
         request.push.int32(query_parameters.groupfunc);
         request.push.lstring(query_parameters.groupby); // Groupby length
 
@@ -419,7 +419,7 @@ exports.SphinxClient = function() {
 	req_length.push.int32(request_buf.length - 8);
 	req_length.toBuffer().copy(request_buf, 4, 0);
 
-	console.log('Sending search request of ' + request_buf.length + ' bytes ');
+	//console.log('Sending search request of ' + request_buf.length + ' bytes ');
 	_enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);
 
     };
@@ -507,7 +507,7 @@ exports.SphinxClient = function() {
 	req_length.push.int32(request_buf.length - 8);
 	req_length.toBuffer().copy(request_buf,4,0);
 
-	console.log('Sending build excerpt request of ' + request_buf.length + 'bytes');
+	//console.log('Sending build excerpt request of ' + request_buf.length + 'bytes');
 	_enqueue(request_buf, callback, Sphinx.clientCommand.EXCERPT);
     }; // build_excerpts
 
