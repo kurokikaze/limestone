@@ -140,6 +140,10 @@ exports.SphinxClient = function() {
         response_output = null;
 
         //var promise = new process.Promise();
+        
+        server_conn.addListener('error', function(e) {
+            callback(e);
+        });
 
         server_conn.addListener('connect', function () {
 
