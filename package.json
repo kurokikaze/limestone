@@ -1,12 +1,13 @@
 {
   "name": "limestone",
   "description": "Sphinx search server connector for Node.js",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "keywords": [
     "sphinx",
     "search",
     "searchd",
-    "text"
+    "text",
+    "fulltext"
   ],
   "main": "./limestone.js",
   "maintainers": [
