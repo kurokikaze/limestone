@@ -158,13 +158,12 @@ exports.SphinxClient = function() {
             if (server_conn.readyState == 'open') {
 		        var version_number = Buffer.makeWriter();
 		        version_number.push.int32(1);
+                server_conn.write(version_number.toBuffer());
                 // Waiting for answer
-                server_conn.once('data', function(data) {
-                    /*if (response_output) {
-                        console.log('connect: Data received from server');
-                    }*/
+                server_conn.once('readable', function() {
+                    var data = server_conn.read();
 
-		    var protocol_version_raw = data.toReader();
+		            var protocol_version_raw = data.toReader();
                     var protocol_version = protocol_version_raw.int32();
                     // if there still data? process and callback
                     if(!protocol_version_raw.empty()) {
@@ -177,6 +176,7 @@ exports.SphinxClient = function() {
                         if(status_code == Sphinx.statusCode.RETRY){
                             errmsg = 'Server issued RETRY: '+server_message;
                         }
+                        console.log('Protocol version is here');
                         if(errmsg){
                             callback(new Error(errmsg));
                         }
@@ -186,7 +186,7 @@ exports.SphinxClient = function() {
                     if (data_unpacked[""] >= 1) {
 
 			            if (persistent){
-                            server_conn.once('drain', function(){
+                            //server_conn.once('drain', function(){
                                 var pers_req = Buffer.makeWriter();
                                 pers_req.push.int16(Sphinx.command.PERSIST);
                                 pers_req.push.int16(0);
@@ -199,18 +199,18 @@ exports.SphinxClient = function() {
                                     server_conn.emit('sphinx.connected');
                                     callback(null);
                                 });
-                            });
-                 } else {
-                     server_conn.once('drain', function(){
-                         server_conn.on('data', readResponseData);
+                            // });
+                    } else {
+                     //server_conn.once('drain', function(){
+                         server_conn.on('readable', readResponseData);
                          _connected = true;
                          server_conn.emit('sphinx.connected');
                          callback(null);
-                     });
-                 }
+                     //});
+                    }
 
                         //all ok, send my version
-			    server_conn.write(version_number.toBuffer());
+			        
                     } else {
                         callback(new Error('Wrong protocol version: ' + protocol_version));
                         server_conn.end();
@@ -555,7 +555,8 @@ exports.SphinxClient = function() {
 	    server_conn.write(_queue[0]['request_buffer']);
     }
 
-    function readResponseData(data) {
+    function readResponseData() {
+        var data = this.read();
         // Got response!
         response_output.append(data);
 	    response_output.runCallbackIfDone(_queue[0]['search_command']);
