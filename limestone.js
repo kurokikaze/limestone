@@ -559,7 +559,9 @@ exports.SphinxClient = function() {
         var data = this.read();
         // Got response!
         response_output.append(data);
-	    response_output.runCallbackIfDone(_queue[0]['search_command']);
+		if (_queue.length > 0) {
+			response_output.runCallbackIfDone(_queue[0]['search_command']);
+		}
     }
 
     function initResponseOutput(query_callback) {
@@ -584,14 +586,15 @@ exports.SphinxClient = function() {
                 }
             },
             append  : function(data) {
-                //this.data.write(data.toString('utf-8'), 'utf-8');
-                // console.log('Appending ' + data.length + ' bytes');
-                var new_buffer = new Buffer(this.data.length + data.length);
-                this.data.copy(new_buffer, 0, 0);
-                data.copy(new_buffer, this.data.length, 0);
-                this.data = new_buffer;
-                // console.log('Data length after appending: ' + this.data.length);
-                this.parseHeader();
+				if (data) {
+					//this.data.write(data.toString('utf-8'), 'utf-8');
+					var new_buffer = new Buffer(this.data.length + data.length);
+					this.data.copy(new_buffer, 0, 0);
+					data.copy(new_buffer, this.data.length, 0);
+					this.data = new_buffer;
+					// console.log('Data length after appending: ' + this.data.length);
+					this.parseHeader();
+				}
             },
             done : function() {
                 // console.log('Length: ' + this.data.length + ' / ' + this.length);
