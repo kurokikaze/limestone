@@ -44,6 +44,6 @@
     "url": "git://github.com/kurokikaze/limestone.git"
   },
   "scripts": {
-    "test": "node ls-test.js"
+    "test": "node purels.js"
   }
 }
