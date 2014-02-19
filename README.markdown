@@ -3,19 +3,19 @@
 Usage:
 
     var limestone = require("./limestone").SphinxClient(),
-    sys = require("sys");
 
     limestone.connect(9312, // port. 9312 is standard Sphinx port. also 'host:port' allowed
 		      function(err) { // callback
 			  if (err) {
-			      sys.puts('Connection error: ' + err);
+			      console.log('Connection error: ' + err.message);
+				  process.exit();
 			  }
-			  sys.puts('Connected, sending query');
+			  console.log('Connected, sending query');
 			  limestone.query(
 			      {'query':'test', maxmatches:1}, 
 			      function(err, answer) {
 				  limestone.disconnect();
-				  sys.puts("Extended search for 'test' yielded " + 
+				  console.log("Extended search for 'test' yielded " + 
 					   answer.match_count + " results: " + 
 					   JSON.stringify(answer));
 			      });
@@ -26,9 +26,9 @@ To Use Build_Excerpts:
     limestone.connect(9312,  // port
 		      function(err) { //callback
 			  if (err) {
-			      sys.puts('Connection error: ' + err);
+			      console.log('Connection error: ' + err);
 			  }
-			  sys.puts('Connected Build Excerpts');
+			  console.log('Connected Build Excerpts');
 			  limestone.build_excerpts(
 			      ['this is my teste text to be highlighted', 
 			       'this is another test text to be highlighted'], // docs
@@ -37,7 +37,7 @@ To Use Build_Excerpts:
 			      {},
 			      function(err, answer) {
 				  limestone.disconnect();
-				  sys.puts(JSON.stringify(answer));
+				  console.log(JSON.stringify(answer));
 			      }
 			  );
 		      });
@@ -49,16 +49,16 @@ You can ask sphinx to open a persistent connection. You can then make several re
 		      true, // persistent (optional)
 		      function(err) { // callback
     			  if (err){
-			      sys.puts('Connection error: ' + err);
+			      console.log('Connection error: ' + err);
 			  }
-			  sys.puts('Connected Search'); 
-			  sys.puts('sending query');  
+			  console.log('Connected Search'); 
+			  console.log('sending query');  
 			  limestone.query(
 			      {'query':'test', // query obj with sphinx opts
 			       maxmatches:1,
 			       indexes:'questions_1,products_3'},
 			      function(err, answer){ // callback
-				  sys.puts('Extended search yielded ' + 
+				  console.log('Extended search yielded ' + 
 					   answer.match_count + " results\n" +
 					   JSON.stringify(answer));
 		
@@ -70,7 +70,7 @@ You can ask sphinx to open a persistent connection. You can then make several re
 				      {},
 				      function(err, answer){
 					  limestone.disconnect();
-					  sys.puts(JSON.stringify(answer));
+					  console.log(JSON.stringify(answer));
 				      }
 				  );
 				  
