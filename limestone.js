@@ -234,41 +234,41 @@ exports.SphinxClient = function() {
 
         // Default query parameters
         var query_parameters = {
-	    offset				: 0,
-	    limit				: 20,
-	    mode				: Sphinx.searchMode.ALL,
-	    weights				: [],
-	    sort				: Sphinx.sortMode.RELEVANCE,
-	    sortby				: "",
-	    min_id				: 0,
-	    max_id				: 0,
-	    filters				: [],
-	    groupby				: "",
-	    groupfunc			: Sphinx.groupFunc.DAY,
-	    groupsort			: "@group desc",
-	    groupdistinct		: "",
-	    maxmatches			: 1000,
-	    cutoff				: 0,
-	    retrycount			: 0,
-	    retrydelay			: 0,
-	    anchor				: [],
-	    indexweights		: [],
-	    ranker				: Sphinx.rankingMode.PROXIMITY_BM25,
-	    maxquerytime		: 0,
-	    fieldweights				: {},
-	    overrides 			: [],
-	    selectlist			: "*",
-            indexes				: '*',
-            comment				: '',
-            query				: "",
-	    error				: "", // per-reply fields (for single-query case)
-	    warning				: "",
-	    connerror			: false,
-	    
-	    reqs				: [],	// requests storage (for multi-query case)
-	    mbenc				: "",
-	    arrayresult			: true,
-	    timeout				: 0
+			offset				: 0,
+			limit				: 20,
+			mode				: Sphinx.searchMode.ALL,
+			weights				: [],
+			sort				: Sphinx.sortMode.RELEVANCE,
+			sortby				: "",
+			min_id				: 0,
+			max_id				: 0,
+			filters				: [],
+			groupby				: "",
+			groupfunc			: Sphinx.groupFunc.DAY,
+			groupsort			: "@group desc",
+			groupdistinct		: "",
+			maxmatches			: 1000,
+			cutoff				: 0,
+			retrycount			: 0,
+			retrydelay			: 0,
+			anchor				: [],
+			indexweights		: [],
+			ranker				: Sphinx.rankingMode.PROXIMITY_BM25,
+			maxquerytime		: 0,
+			fieldweights				: {},
+			overrides 			: [],
+			selectlist			: "*",
+			indexes				: '*',
+			comment				: '',
+			query				: "",
+			error				: "", // per-reply fields (for single-query case)
+			warning				: "",
+			connerror			: false,
+			
+			reqs				: [],	// requests storage (for multi-query case)
+			mbenc				: "",
+			arrayresult			: true,
+			timeout				: 0
         };
 
         if (query_raw.query) {
@@ -280,25 +280,26 @@ exports.SphinxClient = function() {
             	}
             }
         } else {
-            query = query_raw.toString();
+            query = query_parameters;
+			query.query = query_raw.toString();
         }
 
-	var request = Buffer.makeWriter(); 
-    request.push.int16(Sphinx.command.SEARCH);
-	request.push.int16(Sphinx.clientCommand.SEARCH);
-		
-        request.push.int32(0); // This will be request length
-        request.push.int32(0);
-        request.push.int32(1);
-        
-	request.push.int32(query.offset);
-		
-	request.push.int32(query.limit);
+		var request = Buffer.makeWriter(); 
+		request.push.int16(Sphinx.command.SEARCH);
+		request.push.int16(Sphinx.clientCommand.SEARCH);
+			
+		request.push.int32(0); // This will be request length
+		request.push.int32(0);
+		request.push.int32(1);
+			
+		request.push.int32(query.offset);
+			
+		request.push.int32(query.limit);
 
-	request.push.int32(query.mode);
-	request.push.int32(query.ranker);
-	
-	request.push.int32(query.sort);
+		request.push.int32(query.mode);
+		request.push.int32(query.ranker);
+		
+		request.push.int32(query.sort);
 		
         request.push.lstring(query.sortby);
         request.push.lstring(query.query); // Query text
@@ -311,12 +312,9 @@ exports.SphinxClient = function() {
 
         request.push.int32(1); // id64 range marker
 
-        //request.push.int32(0);
-        request.push.int64(0, query.min_id); // This is actually supposed to be two 64-bit numbers
-        //request.push.int32(0);				//  However, there is a caveat about using 64-bit ids
+        request.push.int64(0, query.min_id); 
         request.push.int64(0, query.max_id);
 
-        //console.log('Found ' + query.filters.length + ' filters');
         request.push.int32(query.filters.length);
         for (var filter_id in query.filters) {
             var filter = query.filters[filter_id];
@@ -327,21 +325,17 @@ exports.SphinxClient = function() {
             if (!filter.exclude) {
                 filter.exclude = 0;
             }
-            //request.push.int32(filter.attr.length);//WTF? length is included in lstring
             request.push.lstring(filter.attr);
             request.push.int32(filter.type);
             switch (filter.type) {
             	case Sphinx.filterTypes.VALUES:
             		request.push.int32(filter.values.length); // Count of values
             		for (var value_id in filter.values) {
-                		//request.push.int32(0);		// should be a 64-bit number
                 		request.push.int64(0, filter.values[value_id]);
             		}
             		break;
             	case Sphinx.filterTypes.RANGE:
-            		//request.push.int32(0);		// should be a 64-bit number
             		request.push.int64(0, filter.min);
-            		//request.push.int32(0);		// should be a 64-bit number
             		request.push.int64(0, filter.max);
             		break;
             	case Sphinx.filterTypes.FLOATRANGE:
@@ -412,15 +406,15 @@ exports.SphinxClient = function() {
             }
         }
 
-      request.push.lstring(query_parameters.selectlist); // Select-list
+		request.push.lstring(query_parameters.selectlist); // Select-list
 
-      var request_buf = request.toBuffer();
-      var req_length = Buffer.makeWriter();
-      req_length.push.int32(request_buf.length - 8);
-      req_length.toBuffer().copy(request_buf, 4, 0);
+		var request_buf = request.toBuffer();
+		var req_length = Buffer.makeWriter();
+		req_length.push.int32(request_buf.length - 8);
+		req_length.toBuffer().copy(request_buf, 4, 0);
 
-	  //console.log('Sending search request of ' + request_buf.length + ' bytes ');
-      _enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);
+		//console.log('Sending search request of ' + request_buf.length + ' bytes ');
+		_enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);
 
     };
 
