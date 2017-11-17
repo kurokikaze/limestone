@@ -135,8 +135,8 @@ exports.SphinxClient = function() {
 
 	    server_conn.on("close", function(x){
 		    if (x) {
-			       console.log('closed');
-			       callback(new Error("The socket has closed due to an unknown error"));
+			   console.log('closed');
+			   callback(new Error("The socket has closed due to an unknown error"));
 			}
 		});
 
