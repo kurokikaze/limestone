@@ -11,12 +11,12 @@ exports.SphinxClient = function() {
 
     // All search modes
     Sphinx.searchMode = {
-        "ALL":0,
-        "ANY":1,
-        "PHRASE":2,
-        "BOOLEAN":3,
-        "EXTENDED":4,
-        "FULLSCAN":5,
+        "ALL":		0,
+        "ANY":		1,
+        "PHRASE":	2,
+        "BOOLEAN":	3,
+        "EXTENDED":	4,
+        "FULLSCAN":	5,
         "EXTENDED2":6    // extended engine V2 (TEMPORARY, WILL BE REMOVED)
     };
 
@@ -110,13 +110,12 @@ exports.SphinxClient = function() {
     // Connect to Sphinx server
     self.connect = function() {
 
-	// arguments: ([host:port], [persistent], callback).
-	var args = Array.prototype.slice.call(arguments);
+		// arguments: ([host:port], [persistent], callback).
+		var args = Array.prototype.slice.call(arguments);
 
-	var callback = args.pop();
-	var hostport = args.length ? args.shift() + '' : ':'+Sphinx.port;
-	var persistent =  _persistent = args.length ? args.shift() : false;
-
+		var callback = args.pop();
+		var hostport = args.length ? args.shift() + '' : ':'+Sphinx.port;
+		var persistent =  _persistent = args.length ? args.shift() : false;
 
         if(hostport.indexOf(':')==-1){
             hostport = isNaN(hostport) ? hostport + ':' + Sphinx.port : ':' + hostport;
@@ -143,7 +142,6 @@ exports.SphinxClient = function() {
 
         // disable Nagle algorithm
         server_conn.setNoDelay(true);
-        //server_conn.setEncoding('binary');
 
         response_output = null;
 
@@ -151,9 +149,7 @@ exports.SphinxClient = function() {
 
         server_conn.addListener('connect', function () {
 
-            // console.log('Connected, sending protocol version... State is ' + server_conn.readyState);
             // Sending protocol version
-            // console.log('Sending version number...');
             // Here we must send 4 bytes, '0x00000001'
             if (server_conn.readyState == 'open') {
 		        var version_number = Buffer.makeWriter();
@@ -186,30 +182,26 @@ exports.SphinxClient = function() {
                     if (data_unpacked[""] >= 1) {
 
 			            if (persistent){
-                            //server_conn.once('drain', function(){
-                                var pers_req = Buffer.makeWriter();
-                                pers_req.push.int16(Sphinx.command.PERSIST);
-                                pers_req.push.int16(0);
-                                pers_req.push.int32(4);
-                                pers_req.push.int32(1);
-                                server_conn.write(pers_req.toBuffer());
-                                server_conn.once('drain', function(){
-                                    server_conn.on('data', readResponseData);
-                                    _connected = true;
-                                    server_conn.emit('sphinx.connected');
-                                    callback(null);
-                                });
-                            // });
+							var pers_req = Buffer.makeWriter();
+							pers_req.push.int16(Sphinx.command.PERSIST);
+							pers_req.push.int16(0);
+							pers_req.push.int32(4);
+							pers_req.push.int32(1);
+							server_conn.write(pers_req.toBuffer());
+							server_conn.once('drain', function(){
+								server_conn.on('data', readResponseData);
+								_connected = true;
+								server_conn.emit('sphinx.connected');
+								callback(null);
+							});
                     } else {
-                     //server_conn.once('drain', function(){
-                         server_conn.on('readable', readResponseData);
-                         _connected = true;
-                         server_conn.emit('sphinx.connected');
-                         callback(null);
-                     //});
-                    }
+						server_conn.on('readable', readResponseData);
+						_connected = true;
+						server_conn.emit('sphinx.connected');
+						callback(null);
+					}
 
-                        //all ok, send my version
+					//all ok, send my version
 			        
                     } else {
                         callback(new Error('Wrong protocol version: ' + protocol_version));
@@ -226,11 +218,17 @@ exports.SphinxClient = function() {
 
     };
 
-    // console.log('Connecting to searchd...');
-
     self.query = function(query_raw, callback) {
-        var query = new Object();
+		
+		var query = this.makeQueryObject(query_raw);
 
+		var request_buf = this.makeRequestBuffer(query);
+
+		_enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);
+    };
+	
+	self.makeQueryObject = function(query_raw) {
+        var query = new Object();
 
         // Default query parameters
         var query_parameters = {
@@ -272,18 +270,15 @@ exports.SphinxClient = function() {
         };
 
         if (query_raw.query) {
-            for (x in query_parameters) {
-            	if (query_raw.hasOwnProperty(x)) {
-                    query[x] = query_raw[x];
-            	} else {
-                    query[x] = query_parameters[x];
-            	}
-            }
+            query = Object.assign({}, query_parameters, query);
         } else {
-            query = query_parameters;
+            query = Object.assign({}, query_parameters);
 			query.query = query_raw.toString();
         }
-
+		return query;
+	}
+	
+	self.makeRequestBuffer = function (query) {
 		var request = Buffer.makeWriter(); 
 		request.push.int16(Sphinx.command.SEARCH);
 		request.push.int16(Sphinx.clientCommand.SEARCH);
@@ -318,7 +313,7 @@ exports.SphinxClient = function() {
         request.push.int32(query.filters.length);
         for (var filter_id in query.filters) {
             var filter = query.filters[filter_id];
-            //console.log('Found filter of type ' + filter.type)
+            
             if (!filter.attr) {
                 filter.attr = "";
             }
@@ -346,36 +341,36 @@ exports.SphinxClient = function() {
             request.push.int32(filter.exclude);
         }
 
-        request.push.int32(query_parameters.groupfunc);
-        request.push.lstring(query_parameters.groupby); // Groupby length
+        request.push.int32(query.groupfunc);
+        request.push.lstring(query.groupby); // Groupby length
 
-        request.push.int32(query_parameters.maxmatches); // Maxmatches, default to 1000
+        request.push.int32(query.maxmatches); // Maxmatches, default to 1000
 
-        request.push.lstring(query_parameters.groupsort); // Groupsort
+        request.push.lstring(query.groupsort); // Groupsort
 
-        request.push.int32(query_parameters.cutoff); // Cutoff
-        request.push.int32(query_parameters.retrycount); // Retrycount
-        request.push.int32(query_parameters.retrydelay); // Retrydelay
+        request.push.int32(query.cutoff); // Cutoff
+        request.push.int32(query.retrycount); // Retrycount
+        request.push.int32(query.retrydelay); // Retrydelay
 
-        request.push.lstring(query_parameters.groupdistinct); // Group distinct
+        request.push.lstring(query.groupdistinct); // Group distinct
 
-        if (query_parameters.anchor.length == 0) {
+        if (query.anchor.length == 0) {
             request.push.int32(0); // no anchor given
         } else {
             request.push.int32(1); // anchor point in radians
-            request.push.lstring(query_parameters.anchor["attrlat"]); // Group distinct
-            request.push.lstring(query_parameters.anchor["attrlong"]); // Group distinct
-    		request.push.float(query_parameters.anchor["lat"]);
-    		request.push.float(query_parameters.anchor["long"]);
+            request.push.lstring(query.anchor["attrlat"]); // Group distinct
+            request.push.lstring(query.anchor["attrlong"]); // Group distinct
+    		request.push.float(query.anchor["lat"]);
+    		request.push.float(query.anchor["long"]);
         }
 
-        request.push.int32(query_parameters.indexweights.length);
-        for (var i in query_parameters.indexweights) {
+        request.push.int32(query.indexweights.length);
+        for (var i in query.indexweights) {
             request.push.int32(i);
-            request.push.int32(query_parameters.indexweights[i]);
+            request.push.int32(query.indexweights[i]);
         }
 
-        request.push.int32(query_parameters.maxquerytime); 
+        request.push.int32(query.maxquerytime); 
 	    // per-field weights (preferred method)
         request.push.int32(Object.keys(query.fieldweights).length);
         for (var field_name in query.fieldweights) {
@@ -383,16 +378,16 @@ exports.SphinxClient = function() {
             request.push.int32(query.fieldweights[field_name]);
         }
 
-        request.push.lstring(query_parameters.comment); 
+        request.push.lstring(query.comment); 
 
-        request.push.int32(query_parameters.overrides.length);
-        for (var i in query_parameters.overrides) {
-            request.push.lstring(query_parameters.overrides[i].attr); 
-            request.push.int32(query_parameters.overrides[i].type);
-            request.push.int32(query_parameters.overrides[i].values.length);
-            for (var id in query_parameters.overrides[i].values) {
+        request.push.int32(query.overrides.length);
+        for (var i in query.overrides) {
+            request.push.lstring(query.overrides[i].attr); 
+            request.push.int32(query.overrides[i].type);
+            request.push.int32(query.overrides[i].values.length);
+            for (var id in query.overrides[i].values) {
                 request.push.int64(id);
-                switch (query_parameters.overrides[i].type) {
+                switch (query.overrides[i].type) {
 	                case Sphinx.attribute.FLOAT:
 	                    request.push.float(query_parameters.overrides[i].values[id]);
 	                    break;
@@ -406,104 +401,101 @@ exports.SphinxClient = function() {
             }
         }
 
-		request.push.lstring(query_parameters.selectlist); // Select-list
+		request.push.lstring(query.selectlist); // Select-list
 
 		var request_buf = request.toBuffer();
 		var req_length = Buffer.makeWriter();
 		req_length.push.int32(request_buf.length - 8);
 		req_length.toBuffer().copy(request_buf, 4, 0);
-
-		//console.log('Sending search request of ' + request_buf.length + ' bytes ');
-		_enqueue(request_buf, callback, Sphinx.clientCommand.SEARCH);
-
-    };
+		
+		return request_buf;
+	}
 
     self.build_excerpts = function(docs, index, words, passage_opts_raw, callback){
-	var passage_opts = new Object();
+		var passage_opts = new Object();
 
 
-	var passage_parameters = {
-	    before_match            : '<b>',
-	    after_match             : '</b>',
-	    chunk_separator         : ' ... ',
-	    html_strip_mode         : 'index',
-	    limit                   : 256,
-	    limit_passages          : 0,
-	    limit_words             : 0,
-	    around                  : 5,
-	    start_passage_id        : 1,
-	    passage_boundary        : 'none',
-	}
+		var passage_parameters = {
+			before_match            : '<b>',
+			after_match             : '</b>',
+			chunk_separator         : ' ... ',
+			html_strip_mode         : 'index',
+			limit                   : 256,
+			limit_passages          : 0,
+			limit_words             : 0,
+			around                  : 5,
+			start_passage_id        : 1,
+			passage_boundary        : 'none',
+		}
 
-	for (x in passage_parameters) {
-	    if (passage_opts_raw.hasOwnProperty(x)) {
-		passage_opts[x] = passage_opts_raw[x];
-	    } else {
-		passage_opts[x] = passage_parameters[x];
-	    }
-	}
+		for (x in passage_parameters) {
+			if (passage_opts_raw.hasOwnProperty(x)) {
+			passage_opts[x] = passage_opts_raw[x];
+			} else {
+			passage_opts[x] = passage_parameters[x];
+			}
+		}
 
-	var flags = 1;
-	var flag_properties = {
-	    'exact_phrase'    : 2,
-	    'single_passage'  : 4,
-	    'use_boundaries'  : 8,
-	    'weight_order'    : 16,
-	    'query_mode'      : 32,
-	    'force_all_words' : 64,
-	    'load_files'      : 128,
-	    'allow_empty'     : 256,
-	    'emit_zones'      : 256
-	}
-	
-	for (x in flag_properties) {
-	    if (passage_opts_raw.hasOwnProperty(x)) {
-		flags |= flag_properties[x];
-	    }
-	}
+		var flags = 1;
+		var flag_properties = {
+			'exact_phrase'    : 2,
+			'single_passage'  : 4,
+			'use_boundaries'  : 8,
+			'weight_order'    : 16,
+			'query_mode'      : 32,
+			'force_all_words' : 64,
+			'load_files'      : 128,
+			'allow_empty'     : 256,
+			'emit_zones'      : 256
+		}
+		
+		for (x in flag_properties) {
+			if (passage_opts_raw.hasOwnProperty(x)) {
+			flags |= flag_properties[x];
+			}
+		}
 
-	var request = Buffer.makeWriter();
+		var request = Buffer.makeWriter();
 
-	// request 'header'
-	request.push.int16(Sphinx.command.EXCERPT);
-	request.push.int16(Sphinx.clientCommand.EXCERPT);
-	request.push.int32(0); // This will be request length
-	
-	// request 'body' (flags, options, docs)
+		// request 'header'
+		request.push.int16(Sphinx.command.EXCERPT);
+		request.push.int16(Sphinx.clientCommand.EXCERPT);
+		request.push.int32(0); // This will be request length
+		
+		// request 'body' (flags, options, docs)
 
-	request.push.int32(0);
+		request.push.int32(0);
 
-	request.push.int32(flags);
+		request.push.int32(flags);
 
-	request.push.lstring(index);
+		request.push.lstring(index);
 
-	request.push.lstring(words);
-	
-	// options
-	request.push.lstring(passage_opts.before_match);
-	request.push.lstring(passage_opts.after_match);
-	request.push.lstring(passage_opts.chunk_separator);
-	request.push.int32(passage_opts.limit);
-	request.push.int32(passage_opts.around);
-	request.push.int32(passage_opts.limit_passages);
-	request.push.int32(passage_opts.limit_words);
-	request.push.int32(passage_opts.start_passage_id);
-	request.push.lstring(passage_opts.html_strip_mode);
-	request.push.lstring(passage_opts.passage_boundary);
+		request.push.lstring(words);
+		
+		// options
+		request.push.lstring(passage_opts.before_match);
+		request.push.lstring(passage_opts.after_match);
+		request.push.lstring(passage_opts.chunk_separator);
+		request.push.int32(passage_opts.limit);
+		request.push.int32(passage_opts.around);
+		request.push.int32(passage_opts.limit_passages);
+		request.push.int32(passage_opts.limit_words);
+		request.push.int32(passage_opts.start_passage_id);
+		request.push.lstring(passage_opts.html_strip_mode);
+		request.push.lstring(passage_opts.passage_boundary);
 
-	// docs
-	request.push.int32(docs.length);
-	for (var doc in docs) {
-	    request.push.lstring(docs[doc]);
-	}
+		// docs
+		request.push.int32(docs.length);
+		for (var doc in docs) {
+			request.push.lstring(docs[doc]);
+		}
 
-	var request_buf = request.toBuffer();
-	var req_length = Buffer.makeWriter();
-	req_length.push.int32(request_buf.length - 8);
-	req_length.toBuffer().copy(request_buf,4,0);
+		var request_buf = request.toBuffer();
+		var req_length = Buffer.makeWriter();
+		req_length.push.int32(request_buf.length - 8);
+		req_length.toBuffer().copy(request_buf,4,0);
 
-	//console.log('Sending build excerpt request of ' + request_buf.length + 'bytes');
-	_enqueue(request_buf, callback, Sphinx.clientCommand.EXCERPT);
+		_enqueue(request_buf, callback, Sphinx.clientCommand.EXCERPT);
     }; // build_excerpts
 
     self.disconnect = function() {
@@ -566,14 +558,11 @@ exports.SphinxClient = function() {
             data    : new Buffer(0),
             parseHeader : function() {
                 if (this.status === null && this.data.length >= 8) {
-                    // console.log('Answer length: ' + (this.data.length));
 					var decoder = this.data.toReader();
-                    // var decoder = new bits.Decoder(this.data);
 
                     this.status  = decoder.int16();
                     this.version = decoder.int16();
-                    this.length  = decoder.int32();
-                    // console.log('Receiving answer with status ' + this.status + ', version ' + this.version + ' and length ' + this.length);
+                    this.length  = decoder.int32();                    
 
 		    this.data = this.data.slice(8, this.data.length);
                     // this.data = decoder.string(this.data.length - 8);

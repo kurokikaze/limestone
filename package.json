@@ -16,24 +16,19 @@
   "bugs": {
     "name": "http://github.com/kurokikaze/limestone/issues"
   },
-  "licenses": [
-    {
-      "type": "Creative Commons - Attribution 3.0",
-      "url": "http://creativecommons.org/licenses/by/3.0/"
-    }
-  ],
-  "repositories": [
-    {
-      "type": "git",
-      "url": "git://github.com/kurokikaze/limestone"
-    }
-  ],
+  "license": "MIT",  
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/kurokikaze/limestone"
+  },
   "engine": "node",
   "implements": [
     "CommonJS/Modules/1.0"
   ],
   "dependencies": {},
-  "devDependencies": {},
+  "devDependencies": {
+	"jasmine": "*"
+  },
   "engines": {
     "node": "*"
   },
@@ -44,6 +39,6 @@
     "url": "git://github.com/kurokikaze/limestone.git"
   },
   "scripts": {
-    "test": "node purels.js"
+    "test": "node tests/purels.js"
   }
 }
