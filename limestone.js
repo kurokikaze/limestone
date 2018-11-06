@@ -128,7 +128,7 @@ exports.SphinxClient = function() {
 
         server_conn = tcp.createConnection(port, host);
 	    server_conn.on('error', function(x){
-		    console.log('Error: '+x);
+		    console.log('Error: ' + x);
 	        server_conn.end();
 		    callback(x);
         });
@@ -166,20 +166,18 @@ exports.SphinxClient = function() {
                         status_code = protocol_version_raw.int16();
                         version = protocol_version_raw.int16();
                         server_message = protocol_version_raw.lstring();
-                        if(status_code == Sphinx.statusCode.ERROR){
+                        if (status_code == Sphinx.statusCode.ERROR){
                             errmsg = 'Server issued ERROR: '+server_message;
                         }
-                        if(status_code == Sphinx.statusCode.RETRY){
+                        if (status_code == Sphinx.statusCode.RETRY){
                             errmsg = 'Server issued RETRY: '+server_message;
                         }
-                        console.log('Protocol version is here');
+                        
                         if(errmsg){
                             callback(new Error(errmsg));
                         }
-                    }// if !protocol_version_raw.empty()
-                    var data_unpacked = {'': protocol_version};
-
-                    if (data_unpacked[""] >= 1) {
+                    } // if !protocol_version_raw.empty()
+                    if (protocol_version >= 1) {
 
 			            if (persistent){
 							var pers_req = Buffer.makeWriter();
@@ -187,12 +185,21 @@ exports.SphinxClient = function() {
 							pers_req.push.int16(0);
 							pers_req.push.int32(4);
 							pers_req.push.int32(1);
-							server_conn.write(pers_req.toBuffer());
-							server_conn.once('drain', function(){
-								server_conn.on('data', readResponseData);
+							const persistenceWritten = server_conn.write(pers_req.toBuffer());
+                            if (!persistenceWritten) {
+                                server_conn.once('drain', function(){
+                                    server_conn.on('readable', readResponseData);
+                                    _connected = true;
+                                    server_conn.emit('sphinx.connected');
+                                    callback(null);
+                                });
+                            } else {
+                                server_conn.on('readable', readResponseData);
 								_connected = true;
 								server_conn.emit('sphinx.connected');
 								callback(null);
+                            }
+							server_conn.once('drain', function(){
 							});
                     } else {
 						server_conn.on('readable', readResponseData);
@@ -546,7 +553,7 @@ exports.SphinxClient = function() {
         // Got response!
         response_output.append(data);
 		if (_queue.length > 0) {
-			response_output.runCallbackIfDone(_queue[0]['search_command']);
+            response_output.runCallbackIfDone(_queue[0]['search_command']);
 		}
     }
 
@@ -558,24 +565,22 @@ exports.SphinxClient = function() {
             data    : new Buffer(0),
             parseHeader : function() {
                 if (this.status === null && this.data.length >= 8) {
-					var decoder = this.data.toReader();
+                    var decoder = this.data.toReader();
 
                     this.status  = decoder.int16();
                     this.version = decoder.int16();
                     this.length  = decoder.int32();                    
 
-		    this.data = this.data.slice(8, this.data.length);
+		            this.data = this.data.slice(8, this.data.length);
                     // this.data = decoder.string(this.data.length - 8);
                 }
             },
-            append  : function(data) {
+            append : function(data) {
 				if (data) {
-					//this.data.write(data.toString('utf-8'), 'utf-8');
 					var new_buffer = new Buffer(this.data.length + data.length);
 					this.data.copy(new_buffer, 0, 0);
 					data.copy(new_buffer, this.data.length, 0);
 					this.data = new_buffer;
-					// console.log('Data length after appending: ' + this.data.length);
 					this.parseHeader();
 				}
             },
