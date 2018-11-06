@@ -1,7 +1,7 @@
 {
   "name": "limestone",
   "description": "Sphinx search server connector for Node.js",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "keywords": [
     "sphinx",
     "search",
@@ -16,18 +16,16 @@
   "bugs": {
     "name": "http://github.com/kurokikaze/limestone/issues"
   },
-  "license": "MIT",  
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/kurokikaze/limestone"
-  },
+  "license": "MIT",
   "engine": "node",
   "implements": [
     "CommonJS/Modules/1.0"
   ],
   "dependencies": {},
   "devDependencies": {
-	"jasmine": "*"
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.14.0",
+    "jasmine": "*"
   },
   "engines": {
     "node": "*"
@@ -39,6 +37,6 @@
     "url": "git://github.com/kurokikaze/limestone.git"
   },
   "scripts": {
-    "test": "node tests/purels.js"
+    "test": "node tests/persistent.js"
   }
 }
